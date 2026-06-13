@@ -5,6 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>홍연 마스터 — 홍연기문 운세</title>
   <link rel="stylesheet" href="css/style.css">
+  <style>
+    .toggle-wrap { display:flex; gap:6px; margin-top:4px; }
+    .toggle-btn {
+      flex:1; padding:10px 8px; border-radius:6px; cursor:pointer;
+      border:1px solid var(--border); background:var(--bg-panel);
+      color:var(--text-muted); font-family:'Noto Sans KR',sans-serif;
+      font-size:13px; transition:all 0.2s;
+    }
+    .toggle-btn.active {
+      background:rgba(180,140,80,0.12);
+      border-color:var(--border-glow);
+      color:var(--gold);
+    }
+  </style>
+
 </head>
 <body>
 
@@ -26,6 +41,20 @@
       <div class="card-title">생년월일시 입력</div>
 
       <form id="sajuForm">
+
+        <!-- 양력/음력 선택 -->
+        <div class="form-group">
+          <label class="form-label">양력 / 음력</label>
+          <div class="toggle-wrap">
+            <button type="button" class="toggle-btn active" id="btnSolar"
+              onclick="setCalType('solar')">양력</button>
+            <button type="button" class="toggle-btn" id="btnLunar"
+              onclick="setCalType('lunar')">음력</button>
+            <button type="button" class="toggle-btn" id="btnLeap"
+              onclick="setCalType('leap')" style="display:none">음력 윤달</button>
+          </div>
+          <input type="hidden" id="calType" value="solar">
+        </div>
 
         <div class="form-row">
           <div class="form-group">
@@ -51,12 +80,28 @@
           <div class="form-group">
             <label class="form-label" for="birthDay">일</label>
             <input class="form-input" type="number" id="birthDay"
-              placeholder="예: 15" min="1" max="31" required>
+              placeholder="예: 15" min="1" max="30" required>
           </div>
           <div class="form-group">
-            <label class="form-label" for="birthHour">시간 (0~23시)</label>
-            <input class="form-input" type="number" id="birthHour"
-              placeholder="예: 14" min="0" max="23" required>
+            <label class="form-label" for="birthSiji">태어난 시(時)</label>
+            <select class="form-select" id="birthSiji" required>
+              <option value="">시 선택</option>
+              <option value="자">자시(子時) — 밤 11시 ~ 새벽 1시</option>
+              <option value="축">축시(丑時) — 새벽 1시 ~ 3시</option>
+              <option value="인">인시(寅時) — 새벽 3시 ~ 5시</option>
+              <option value="묘">묘시(卯時) — 새벽 5시 ~ 7시</option>
+              <option value="진">진시(辰時) — 오전 7시 ~ 9시</option>
+              <option value="사">사시(巳時) — 오전 9시 ~ 11시</option>
+              <option value="오">오시(午時) — 오전 11시 ~ 오후 1시</option>
+              <option value="미">미시(未時) — 오후 1시 ~ 3시</option>
+              <option value="신">신시(申時) — 오후 3시 ~ 5시</option>
+              <option value="유">유시(酉時) — 오후 5시 ~ 7시</option>
+              <option value="술">술시(戌時) — 오후 7시 ~ 9시</option>
+              <option value="해">해시(亥時) — 오후 9시 ~ 11시</option>
+            </select>
+            <p style="font-size:11px; color:var(--text-dim); margin-top:6px;">
+              정확한 시간을 모르면 비워두세요.
+            </p>
           </div>
         </div>
 
@@ -189,11 +234,20 @@
     document.getElementById("sajuForm").addEventListener("submit", async function(e) {
       e.preventDefault();
 
+      // 시지 → 대표 시간(hour) 변환
+      const sijiToHour = {
+        자:23, 축:1, 인:3, 묘:5, 진:7, 사:9,
+        오:11, 미:13, 신:15, 유:17, 술:19, 해:21
+      };
+      const sijiVal = document.getElementById("birthSiji").value;
+
       const input = {
         year:     parseInt(document.getElementById("birthYear").value),
         month:    parseInt(document.getElementById("birthMonth").value),
         day:      parseInt(document.getElementById("birthDay").value),
-        hour:     parseInt(document.getElementById("birthHour").value),
+        hour:     sijiVal ? sijiToHour[sijiVal] : 12,
+        siji:     sijiVal || "",
+        calType:  document.getElementById("calType").value,
         gender:   document.getElementById("gender").value,
         yearGan:  document.getElementById("yearGan").value,
         yearJi:   document.getElementById("yearJi").value,
@@ -202,7 +256,7 @@
         dayGan:   document.getElementById("dayGan").value,
         dayJi:    document.getElementById("dayJi").value,
         hourGan:  document.getElementById("hourGan").value,
-        hourJi:   document.getElementById("hourJi").value,
+        hourJi:   document.getElementById("hourJi").value || sijiVal,
       };
 
       // 연산 실행
@@ -220,5 +274,22 @@
     });
   </script>
 
+  <script>
+    function setCalType(type) {
+      document.getElementById("calType").value = type;
+      document.querySelectorAll(".toggle-btn").forEach(b => b.classList.remove("active"));
+
+      if (type === "solar") {
+        document.getElementById("btnSolar").classList.add("active");
+        document.getElementById("btnLeap").style.display = "none";
+      } else if (type === "lunar") {
+        document.getElementById("btnLunar").classList.add("active");
+        document.getElementById("btnLeap").style.display = "";
+      } else {
+        document.getElementById("btnLeap").classList.add("active");
+        document.getElementById("btnLeap").style.display = "";
+      }
+    }
+  </script>
 </body>
 </html>
