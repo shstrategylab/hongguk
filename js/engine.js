@@ -277,6 +277,7 @@ function buildAiPrompt(result, userInput, topic) {
   const topicGuide = topicMap[topic] || topicMap.general;
 
   const hasSaju = !!(userInput.yearGan && userInput.monthGan && userInput.dayGan);
+  const hasAnySaju = !!(userInput.yearGan || userInput.monthGan || userInput.dayGan || userInput.hourGan);
 
   const accuracyNote = hasSaju ? "" : `\
 [내부 지침 — 응답에 이 내용을 그대로 출력하지 마세요]
@@ -304,6 +305,14 @@ ${accuracyNote}${precisionNote}
 - 생년월일시: ${userInput.year}년 ${userInput.month}월 ${userInput.day}일 (${meta.sijiChar}시)
 - 양력/음력: ${userInput.calType === 'solar' ? '양력' : userInput.calType === 'lunar' ? '음력' : '음력 윤달'}
 - 성별: ${userInput.gender || '미입력'}
+
+## 사주팔자 (간지)
+${hasAnySaju
+  ? `- 연주: ${userInput.yearGan || '?'}${userInput.yearJi || '?'}
+- 월주: ${userInput.monthGan || '?'}${userInput.monthJi || '?'}
+- 일주: ${userInput.dayGan || '?'}${userInput.dayJi || '?'}
+- 시주: ${userInput.hourGan || '?'}${userInput.hourJi || meta.sijiChar || '?'}`
+  : `- 간지 미입력 (절기 기반 근사 포국)`}
 
 ## 절기·포국 정보
 - 절기: ${meta.jeolgiName} / ${meta.type} ${meta.baseGuksu}국
