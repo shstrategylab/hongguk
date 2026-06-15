@@ -527,3 +527,17 @@ body::before {
   flex-shrink: 0;
   margin-top: 1px;
 }
+
+/* ── 팔문(八門) 뱃지 ─────────────────────────────── */
+.palmun-badge {
+  font-size: 9px;
+  letter-spacing: 0.03em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-top: 2px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.palmun-gil  { background: rgba(74,140,92,0.18);  color: #6dbf87; border: 1px solid rgba(74,140,92,0.3); }
+.palmun-mid  { background: rgba(140,120,60,0.18); color: #c8a96e; border: 1px solid rgba(140,120,60,0.3); }
+.palmun-흉  { background: rgba(180,60,50,0.18);  color: #e07060; border: 1px solid rgba(180,60,50,0.3); }
