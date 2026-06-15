@@ -50,22 +50,7 @@
     .gung-detail-row:last-child { border-bottom: none; }
     .gung-detail-row strong { color: var(--text-main); }
 
-    .summary-list { list-style: none; }
-    .summary-list li {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      padding: 10px 0;
-      border-bottom: 1px solid rgba(255,255,255,0.04);
-      font-size: 13px;
-    }
-    .summary-list li:last-child { border-bottom: none; }
-    .summary-rank {
-      font-family: 'Noto Serif KR', serif;
-      color: var(--gold);
-      font-size: 15px;
-      min-width: 20px;
-    }
+    /* summary 스타일은 style.css로 이관 */
   </style>
 </head>
 <body>
@@ -233,13 +218,18 @@
         const li = document.createElement("li");
         li.innerHTML = `
           <span class="summary-rank">${i + 1}</span>
-          <div>
-            <strong style="font-size:13px">${g.gungInfo.name}</strong>
-            <span class="text-muted" style="margin-left:8px; font-size:11px">${g.gungInfo.direction}</span>
-            <span class="score-badge badge-${g.relation.badge}" style="margin-left:4px; position:static;">${g.relation.badge}</span>
-            <br>
-            <span class="text-sm" style="color: var(--text-main);">${g.relation.desc}</span>
-            ${g.relation.detail ? `<br><span class="text-sm text-muted">↳ ${g.relation.detail}</span>` : ""}
+          <div class="summary-item-body">
+            <div class="summary-item-header">
+              <span class="summary-item-name">${g.gungInfo.name}</span>
+              <span class="summary-item-dir">${g.gungInfo.direction}</span>
+              <span class="score-badge badge-${g.relation.badge}" style="position:static;">${g.relation.badge}</span>
+            </div>
+            <div class="summary-item-desc">${g.relation.desc}</div>
+            ${g.relation.detail ? `
+            <div class="summary-item-detail">
+              <span class="summary-item-detail-arrow">↳</span>
+              <span>${g.relation.detail}</span>
+            </div>` : ""}
           </div>
         `;
         list.appendChild(li);
