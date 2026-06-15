@@ -241,15 +241,20 @@ function deriveGiljung(board, segungIndex) {
 
 // ── 11. AI 프롬프트 조립 (팔문 포함) ─────────────
 function buildAiPrompt(result, userInput, topic) {
-  const { meta, analysis, board, giljung } = result;
+  const { meta, analysis, board } = result;
+  // giljung 없는 구버전 sessionStorage 데이터 호환 — 없으면 빈 구조로 폴백
+  const giljung = result.giljung || deriveGiljung(board, analysis.segungIndex);
 
   const samwonLabel = { sang: "상원(上元)", jung: "중원(中元)", ha: "하원(下元)" };
 
   // 구궁 포국 텍스트 (팔문 포함)
   const boardText = NAKSEO_PATH.map(gungNum => {
     const g = board[gungNum];
-    const segMark = g.isSegung ? " ★세궁" : "";
-    return `  ${g.gungInfo.name}(${g.gungInfo.direction}): 지반${g.jibansu} 천반${g.cheonbansu} [${g.relation.label} ${g.relation.score}점] [${g.palmun.label} ${g.palmun.score}점]${segMark}`;
+    const segMark   = g.isSegung ? " ★세궁" : "";
+    const palmunStr = g.palmun
+      ? ` [${g.palmun.label} ${g.palmun.score}점]`
+      : ""; // 구버전 sessionStorage 호환
+    return `  ${g.gungInfo.name}(${g.gungInfo.direction}): 지반${g.jibansu} 천반${g.cheonbansu} [${g.relation.label} ${g.relation.score}점]${palmunStr}${segMark}`;
   }).join("\n");
 
   // 길방·흉방 요약 텍스트
