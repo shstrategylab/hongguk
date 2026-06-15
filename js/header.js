@@ -1,5 +1,4 @@
 (function () {
-  // 현재 페이지 파일명으로 active 메뉴 자동 감지
   const page = location.pathname.split('/').pop() || 'index.html';
 
   const navItems = [
@@ -55,15 +54,22 @@
         </div>
       </a>
     </header>
-    <nav class="nav-bar" style="position:relative; z-index:1;">
+    <nav class="nav-bar">
       ${navHTML}
     </nav>`;
 
-  // <main> 앞에 삽입 — script 위치에 관계없이 항상 올바른 위치에 렌더링
-  const main = document.querySelector('main');
-  if (main) {
-    main.insertAdjacentHTML('beforebegin', headerHTML);
+  function inject() {
+    const main = document.querySelector('main');
+    if (main) {
+      main.insertAdjacentHTML('beforebegin', headerHTML);
+    } else {
+      document.body.insertAdjacentHTML('afterbegin', headerHTML);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', inject);
   } else {
-    document.body.insertAdjacentHTML('afterbegin', headerHTML);
+    inject();
   }
 })();
