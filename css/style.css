@@ -70,7 +70,7 @@ body::before {
 
 .site-header .logo {
   font-family: 'Noto Serif KR', serif;
-  font-size: 36px;
+  font-size: 28px;
   font-weight: 700;
   color: var(--gold);
   letter-spacing: 0.12em;
@@ -78,8 +78,7 @@ body::before {
   margin-bottom: 8px;
 }
 
-.site-header .logo-sub {
-  font-size: 15px;
+  font-size: 13px;
   color: var(--text-muted);
   letter-spacing: 0.2em;
   text-transform: uppercase;
@@ -94,9 +93,7 @@ body::before {
   margin-bottom: 24px;
 }
 
-.card-title {
-  font-family: 'Noto Serif KR', serif;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
   color: var(--gold);
   letter-spacing: 0.06em;
@@ -112,7 +109,7 @@ body::before {
 
 .form-label {
   display: block;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-muted);
   letter-spacing: 0.1em;
   margin-bottom: 10px;
@@ -124,9 +121,7 @@ body::before {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text-main);
-  font-family: 'Noto Sans KR', sans-serif;
-  font-size: 16px;
-  padding: 16px 18px;
+  font-size: 15px;
   outline: none;
   transition: border-color var(--transition);
   appearance: none;
@@ -151,9 +146,7 @@ body::before {
   border: none;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  font-family: 'Noto Sans KR', sans-serif;
-  font-size: 17px;
-  font-weight: 500;
+  font-size: 15px;
   padding: 18px 28px;
   transition: all var(--transition);
   width: 100%;
@@ -184,7 +177,7 @@ body::before {
   background: var(--bg-panel);
   border: 1px solid var(--border);
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: 13px;
   padding: 10px 16px;
   width: auto;
 }
@@ -229,20 +222,20 @@ body::before {
 }
 
 .gung-cell .gung-name {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-muted);
   letter-spacing: 0.05em;
 }
 
 .gung-cell .gung-num {
   font-family: 'Noto Serif KR', serif;
-  font-size: 26px;
+  font-size: 22px;
   color: var(--text-main);
   font-weight: 600;
 }
 
 .gung-cell .gung-cheonban {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--gold);
 }
 
@@ -250,7 +243,7 @@ body::before {
   position: absolute;
   top: 5px;
   right: 5px;
-  font-size: 11px;
+  font-size: 10px;
   padding: 2px 5px;
   border-radius: 4px;
   font-weight: 500;
@@ -308,7 +301,7 @@ body::before {
   border-radius: var(--radius-sm);
   padding: 16px;
   font-family: 'Noto Sans KR', sans-serif;
-  font-size: 15px;
+  font-size: 13px;
   line-height: 1.9;
   color: var(--text-muted);
   white-space: pre-wrap;
@@ -327,7 +320,7 @@ body::before {
   border: 1px solid var(--border-glow);
   border-radius: var(--radius-sm);
   padding: 12px 22px;
-  font-size: 15px;
+  font-size: 13px;
   color: var(--gold-light);
   opacity: 0;
   transition: all 0.3s ease;
@@ -356,7 +349,7 @@ body::before {
   text-align: center;
   padding: 12px 8px;
   border-radius: var(--radius-sm);
-  font-size: 15px;
+  font-size: 13px;
   color: var(--text-muted);
   text-decoration: none;
   transition: all var(--transition);
@@ -376,23 +369,23 @@ body::before {
 @media (max-width: 720px) {
   .container { padding: 0 20px; }
   .card { padding: 28px 22px; }
-  .site-header .logo { font-size: 30px; }
+  .site-header .logo { font-size: 24px; }
 }
 
 @media (max-width: 480px) {
   .site-header { padding: 32px 16px 24px; }
-  .site-header .logo { font-size: 24px; }
+  .site-header .logo { font-size: 20px; }
   .card { padding: 20px 16px; }
   .form-row { grid-template-columns: 1fr; }
-  .gung-cell .gung-num { font-size: 22px; }
-  .nav-item { font-size: 13px; padding: 10px 4px; }
+  .gung-cell .gung-num { font-size: 18px; }
+  .nav-item { font-size: 12px; padding: 10px 4px; }
 }
 
 /* ── 유틸리티 ────────────────────────────────────── */
 .text-gold   { color: var(--gold); }
 .text-muted  { color: var(--text-muted); }
-.text-sm     { font-size: 15px; }
-.text-xs     { font-size: 13px; }
+.text-sm     { font-size: 13px; }
+.text-xs     { font-size: 11px; }
 .mt-8  { margin-top: 8px; }
 .mt-16 { margin-top: 16px; }
 .mb-8  { margin-bottom: 8px; }
