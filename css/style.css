@@ -76,6 +76,12 @@ body::before {
   letter-spacing: 0.12em;
   display: block;
   margin-bottom: 8px;
+  text-decoration: none;
+  transition: color var(--transition);
+}
+
+.site-header .logo:hover {
+  color: var(--gold-light);
 }
 
 .site-header .logo-sub {
