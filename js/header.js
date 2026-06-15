@@ -54,9 +54,11 @@
         </div>
       </a>
     </header>
-    <nav class="nav-bar">
-      ${navHTML}
-    </nav>`;
+    <div class="container">
+      <nav class="nav-bar">
+        ${navHTML}
+      </nav>
+    </div>`;
 
   // 파비콘 자동 삽입
   const link = document.createElement('link');
