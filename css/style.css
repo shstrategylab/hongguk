@@ -342,10 +342,16 @@ body::before {
   border-radius: var(--radius);
   padding: 6px;
   margin-bottom: 28px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
+
+.nav-bar::-webkit-scrollbar { display: none; }
 
 .nav-item {
   flex: 1;
+  flex-shrink: 0;
   text-align: center;
   padding: 12px 8px;
   border-radius: var(--radius-sm);
@@ -354,6 +360,7 @@ body::before {
   text-decoration: none;
   transition: all var(--transition);
   letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
 .nav-item.active, .nav-item:hover {
@@ -378,7 +385,7 @@ body::before {
   .card { padding: 20px 16px; }
   .form-row { grid-template-columns: 1fr; }
   .gung-cell .gung-num { font-size: 18px; }
-  .nav-item { font-size: 12px; padding: 10px 4px; }
+  .nav-item { font-size: 12px; padding: 10px 12px; min-width: 64px; }
 }
 
 /* ── 유틸리티 ────────────────────────────────────── */
