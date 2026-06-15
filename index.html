@@ -21,51 +21,43 @@
     .form-group { margin-bottom: 8px; }
     .form-row { gap: 8px; margin-bottom: 0; }
     .card { padding: 16px; }
-    .site-header, .container { position: relative; z-index: 1; }
   </style>
 
 </head>
 <body>
 
-  <!-- 배경 심볼 워터마크 -->
-  <div style="position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:520px; height:520px; pointer-events:none; z-index:0; opacity:0.18;">
-    <svg width="520" height="520" viewBox="0 0 280 280" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="140" cy="140" r="130" fill="none" stroke="#B48C50" stroke-width="1"/>
-      <circle cx="140" cy="140" r="88"  fill="none" stroke="#B48C50" stroke-width="0.8"/>
-      <g stroke="#B48C50" stroke-width="0.7">
-        <line x1="140" y1="10"  x2="140" y2="270"/>
-        <line x1="10"  y1="140" x2="270" y2="140"/>
-        <line x1="48"  y1="48"  x2="232" y2="232"/>
-        <line x1="232" y1="48"  x2="48"  y2="232"/>
-      </g>
-      <g stroke="#B48C50" stroke-width="1.2">
-        <rect x="90" y="90" width="100" height="100" rx="3" fill="none"/>
-        <line x1="90"  y1="123" x2="190" y2="123"/>
-        <line x1="90"  y1="157" x2="190" y2="157"/>
-        <line x1="123" y1="90"  x2="123" y2="190"/>
-        <line x1="157" y1="90"  x2="157" y2="190"/>
-      </g>
-      <g text-anchor="middle" font-size="13" fill="#B48C50" font-family="Georgia, serif">
-        <text x="107" y="113">4</text><text x="140" y="113">9</text><text x="173" y="113">2</text>
-        <text x="107" y="146">3</text>                              <text x="173" y="146">7</text>
-        <text x="107" y="180">8</text><text x="140" y="180">1</text><text x="173" y="180">6</text>
-      </g>
-      <text x="140" y="155" text-anchor="middle" font-size="44" fill="#B48C50">☯</text>
-      <g text-anchor="middle" font-size="20" fill="#B48C50">
-        <text x="140" y="18">☵</text>
-        <text x="140" y="272">☲</text>
-        <text x="272" y="148">☳</text>
-        <text x="8"   y="148">☴</text>
-        <text x="236" y="56">☰</text>
-        <text x="44"  y="56">☱</text>
-        <text x="236" y="240">☶</text>
-        <text x="44"  y="240">☷</text>
-      </g>
-    </svg>
-  </div>
-
   <header class="site-header">
-    <a href="index.html" class="logo">洪烟 마스터</a>
+    <a href="index.html" class="logo" style="display:inline-flex; align-items:center; gap:8px;">
+      <svg width="32" height="32" viewBox="0 0 280 280" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="140" cy="140" r="128" fill="none" stroke="#B48C50" stroke-width="3" opacity="0.5"/>
+        <circle cx="140" cy="140" r="86"  fill="none" stroke="#B48C50" stroke-width="2" opacity="0.3"/>
+        <g stroke="#B48C50" stroke-width="1.5" opacity="0.3">
+          <line x1="140" y1="12"  x2="140" y2="268"/>
+          <line x1="12"  y1="140" x2="268" y2="140"/>
+          <line x1="52"  y1="52"  x2="228" y2="228"/>
+          <line x1="228" y1="52"  x2="52"  y2="228"/>
+        </g>
+        <g stroke="#B48C50" stroke-width="4" opacity="0.6">
+          <rect x="90" y="90" width="100" height="100" rx="4" fill="none"/>
+          <line x1="90"  y1="123" x2="190" y2="123"/>
+          <line x1="90"  y1="157" x2="190" y2="157"/>
+          <line x1="123" y1="90"  x2="123" y2="190"/>
+          <line x1="157" y1="90"  x2="157" y2="190"/>
+        </g>
+        <text x="140" y="157" text-anchor="middle" font-size="52" fill="#B48C50">☯</text>
+        <g text-anchor="middle" font-size="22" fill="#B48C50" opacity="0.85">
+          <text x="140" y="22">☵</text>
+          <text x="140" y="272">☲</text>
+          <text x="268" y="150">☳</text>
+          <text x="12"  y="150">☴</text>
+          <text x="234" y="58">☰</text>
+          <text x="46"  y="58">☱</text>
+          <text x="234" y="238">☶</text>
+          <text x="46"  y="238">☷</text>
+        </g>
+      </svg>
+      洪烟 마스터
+    </a>
     <span class="logo-sub">홍연기문 · 홍국기문 운세 분석</span>
   </header>
 
