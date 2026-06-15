@@ -78,6 +78,7 @@ body::before {
   margin-bottom: 8px;
 }
 
+.site-header .logo-sub {
   font-size: 13px;
   color: var(--text-muted);
   letter-spacing: 0.2em;
@@ -93,6 +94,7 @@ body::before {
   margin-bottom: 24px;
 }
 
+.card-title {
   font-size: 18px;
   font-weight: 600;
   color: var(--gold);
