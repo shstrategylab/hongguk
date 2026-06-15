@@ -408,3 +408,78 @@ body::before {
 .mb-8  { margin-bottom: 8px; }
 .mb-16 { margin-bottom: 16px; }
 .serif { font-family: 'Noto Serif KR', serif; }
+
+/* ── 길흉 요약 리스트 ────────────────────────────── */
+.summary-list { list-style: none; }
+
+.summary-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.summary-list li:last-child { border-bottom: none; }
+
+.summary-rank {
+  font-family: 'Noto Serif KR', serif;
+  color: var(--gold);
+  font-size: 15px;
+  min-width: 20px;
+  padding-top: 2px;
+  flex-shrink: 0;
+}
+
+.summary-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+}
+
+.summary-item-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.summary-item-name {
+  font-family: 'Noto Serif KR', serif;
+  font-size: 14px;
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.summary-item-dir {
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+
+.summary-item-desc {
+  font-size: 13px;
+  color: var(--text-main);
+  line-height: 1.65;
+}
+
+.summary-item-detail {
+  display: flex;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.7;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.025);
+  border-left: 2px solid rgba(180, 140, 80, 0.35);
+  border-radius: 0 4px 4px 0;
+  margin-top: 2px;
+}
+
+.summary-item-detail-arrow {
+  color: var(--gold);
+  opacity: 0.6;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
