@@ -1,8 +1,12 @@
 // =====================================================
-// engine.js — 홍연기문 핵심 연산 엔진 v2.1
-// data-ganji.js: CHEONGAN, JIJI, SAMWON, GANJI_60, getHourToSiji
-// data-jeolgi.js: JEOLGI_ORDER, JEOLGI_APPROX_DATE, JEOLGI_DATA
-// data-gugung.js: GUGUNG, getRelationType
+// engine.js — 홍연기문 핵심 연산 엔진 v2.2
+// 변경: 팔문(八門) 배속 포국 반영, AI 프롬프트 팔문 포함
+//
+// 의존 파일:
+//   data-ganji.js  : CHEONGAN, JIJI, SAMWON, GANJI_60, getHourToSiji
+//   data-jeolgi.js : JEOLGI_ORDER, JEOLGI_APPROX_DATE, JEOLGI_DATA
+//   data-gugung.js : GUGUNG, PALMUN, PALMUN_ORDER, buildPalmunBoard,
+//                    RELATION_TYPE, getRelationType, getOhaengChar
 // =====================================================
 
 
@@ -26,25 +30,14 @@ function getCurrentJeolgi(month, day) {
 }
 
 
-// ── 2. 부두일(符頭日) 지지 → 삼원 판별 ──────────
-// 부두일: 일간이 甲(갑) 또는 己(기)인 날
-// 해당 날의 지지로 상원/중원/하원 결정
-//
-// [수정 v2.1] GANJI_60 배열 활용으로 정확히 역산
-// - 부두일 자신이면 일지가 곧 부두 지지
-// - 부두일 아니면 GANJI_60에서 인덱스 % 5 거리만큼 역산
-// - 간지 미입력 시 월지로 근사
-
-// GANJI_60 은 data-ganji.js 에 정의되어 있음
+// ── 2. 부두일 지지 → 삼원 판별 ───────────────────
+// GANJI_60 활용: idx % 5 로 부두일까지 거리 역산
 function getBuduJi(dayGan, dayJi) {
   const ganji = dayGan + dayJi;
   const idx = GANJI_60.indexOf(ganji);
   if (idx === -1) return null;
-
-  // 갑·기는 5칸마다 부두 → idx % 5가 현재 일로부터 부두일까지의 거리
-  const distToBudu = idx % 5;
-  const buduIdx = idx - distToBudu; // 해당 구간 부두일의 GANJI_60 인덱스
-  return GANJI_60[buduIdx][1];      // 부두일 간지의 두 번째 글자 = 지지
+  const buduIdx = idx - (idx % 5);
+  return GANJI_60[buduIdx][1];
 }
 
 function getSamwon(dayGan, dayJi, monthJi) {
@@ -52,11 +45,7 @@ function getSamwon(dayGan, dayJi, monthJi) {
 
   if (dayGan && dayJi) {
     const isBudu = dayGan === "갑" || dayGan === "기";
-    if (isBudu) {
-      targetJi = dayJi;
-    } else {
-      targetJi = getBuduJi(dayGan, dayJi) || dayJi;
-    }
+    targetJi = isBudu ? dayJi : (getBuduJi(dayGan, dayJi) || dayJi);
   } else {
     targetJi = monthJi || "자";
   }
@@ -73,8 +62,8 @@ function getBaseGuksu(jeolgiKey, samwonKey) {
   const jeolgi = JEOLGI_DATA[jeolgiKey];
   if (!jeolgi) return { guksu: 1, type: "양둔", jeolgiName: "알 수 없음" };
   return {
-    guksu:     jeolgi.guksu[samwonKey],
-    type:      jeolgi.type,
+    guksu:      jeolgi.guksu[samwonKey],
+    type:       jeolgi.type,
     jeolgiName: jeolgi.name,
   };
 }
@@ -89,13 +78,9 @@ function buildJibanBoard(baseGuksu, type) {
 
   for (let i = 0; i < 9; i++) {
     const gungNum = NAKSEO_PATH[i];
-    let val;
-    if (isYangdun) {
-      val = ((baseGuksu - 1 + i) % 9) + 1;
-    } else {
-      val = ((baseGuksu - 1 - i + 900) % 9) + 1;
-    }
-    jibanBoard[gungNum] = val;
+    jibanBoard[gungNum] = isYangdun
+      ? ((baseGuksu - 1 + i) % 9) + 1
+      : ((baseGuksu - 1 - i + 900) % 9) + 1;
   }
   return jibanBoard;
 }
@@ -109,77 +94,62 @@ function calcHongguksu(saju8, cheongan4) {
     return acc;
   }, 0);
 
-  const sum4 = cheongan4.reduce((acc, ch) => {
-    return acc + (CHEONGAN[ch]?.num || 0);
-  }, 0);
+  const sum4 = cheongan4.reduce((acc, ch) => acc + (CHEONGAN[ch]?.num || 0), 0);
 
-  const jibanHong    = sum8 % 9 === 0 ? 9 : sum8 % 9;
-  const cheonbanHong = sum4 % 9 === 0 ? 9 : sum4 % 9;
-
-  return { jibanHong, cheonbanHong };
+  return {
+    jibanHong:    sum8 % 9 === 0 ? 9 : sum8 % 9,
+    cheonbanHong: sum4 % 9 === 0 ? 9 : sum4 % 9,
+  };
 }
 
 
 // ── 6. 천반 오버레이 배치 ─────────────────────────
 function buildCheonbanBoard(jibanBoard, jibanHong, cheonbanHong, type) {
   const isYangdun = type === "양둔";
-
-  const anchorGung = Object.keys(jibanBoard).find(
-    g => jibanBoard[g] === jibanHong
-  );
+  const anchorGung = Object.keys(jibanBoard).find(g => jibanBoard[g] === jibanHong);
   if (!anchorGung) return {};
 
   const anchorIdx = NAKSEO_PATH.indexOf(parseInt(anchorGung));
-
   const cheonbanBoard = {};
+
   for (let i = 0; i < 9; i++) {
     const gungNum = NAKSEO_PATH[(anchorIdx + i) % 9];
-    let val;
-    if (isYangdun) {
-      val = ((cheonbanHong - 1 + i) % 9) + 1;
-    } else {
-      val = ((cheonbanHong - 1 - i + 900) % 9) + 1;
-    }
-    cheonbanBoard[gungNum] = val;
+    cheonbanBoard[gungNum] = isYangdun
+      ? ((cheonbanHong - 1 + i) % 9) + 1
+      : ((cheonbanHong - 1 - i + 900) % 9) + 1;
   }
   return cheonbanBoard;
 }
 
 
-// ── 7. 세궁(世宮) 도출 ───────────────────────────
+// ── 7. 세궁 도출 ──────────────────────────────────
 function getSegung(dayGan, jibanBoard) {
   if (!dayGan || !CHEONGAN[dayGan]) return 5;
 
-  const dayOhaeng = CHEONGAN[dayGan].ohaeng;
-
   const ohaengToGung = {
-    목: [3, 4],
-    화: [9],
-    토: [2, 5, 8],
-    금: [6, 7],
-    수: [1],
+    목: [3, 4], 화: [9], 토: [2, 5, 8], 금: [6, 7], 수: [1],
   };
+  const candidates = ohaengToGung[CHEONGAN[dayGan].ohaeng] || [5];
 
-  const candidates = ohaengToGung[dayOhaeng] || [5];
-
-  let segung = candidates[0];
-  let maxVal = 0;
+  let segung = candidates[0], maxVal = 0;
   for (const g of candidates) {
-    if (jibanBoard[g] > maxVal) {
-      maxVal = jibanBoard[g];
-      segung = g;
-    }
+    if (jibanBoard[g] > maxVal) { maxVal = jibanBoard[g]; segung = g; }
   }
   return segung;
 }
 
 
-// ── 8. 최종 board 조립 ───────────────────────────
+// ── 8. 최종 board 조립 (팔문 포함) ───────────────
 function assembleBoard(jibanBoard, cheonbanBoard, segungIndex) {
+  // 팔문 배속 (data-gugung.js의 buildPalmunBoard 사용)
+  const palmunBoard = buildPalmunBoard(segungIndex);
+
   const board = {};
   for (const gungNum of NAKSEO_PATH) {
-    const jiban  = jibanBoard[gungNum]    || 5;
-    const cheon  = cheonbanBoard[gungNum] || 5;
+    const jiban   = jibanBoard[gungNum]    || 5;
+    const cheon   = cheonbanBoard[gungNum] || 5;
+    const palmunKey = palmunBoard[gungNum] || "복위";
+
     board[gungNum] = {
       gungNum,
       gungInfo:   GUGUNG[gungNum],
@@ -187,6 +157,8 @@ function assembleBoard(jibanBoard, cheonbanBoard, segungIndex) {
       cheonbansu: cheon,
       isSegung:   gungNum === segungIndex,
       relation:   getRelationType(cheon, jiban),
+      palmun:     PALMUN[palmunKey],      // 팔문 전체 데이터
+      palmunKey,                          // 팔문 키값 (생기·절명 등)
     };
   }
   return board;
@@ -201,8 +173,7 @@ function runHongyeon(input) {
     dayGan,  dayJi,  hourGan,  hourJi,
   } = input;
 
-  const sijiChar = hourJi || siji || getHourToSiji(hour || 12);
-
+  const sijiChar   = hourJi || siji || getHourToSiji(hour || 12);
   const jeolgiKey  = getCurrentJeolgi(month, day);
   const samwonKey  = getSamwon(dayGan, dayJi, monthJi);
   const { guksu: baseGuksu, type, jeolgiName } = getBaseGuksu(jeolgiKey, samwonKey);
@@ -217,39 +188,78 @@ function runHongyeon(input) {
   const segungIndex   = getSegung(dayGan, jibanBoard);
   const board         = assembleBoard(jibanBoard, cheonbanBoard, segungIndex);
 
+  // 길흉 요약 자동 산출
+  const giljung = deriveGiljung(board, segungIndex);
+
   const hasSaju = !!(yearGan && monthGan && dayGan);
   const warning = hasSaju ? null
-    : "사주팔자 간지를 입력하지 않아 절기 기반 근사값으로 포국했습니다. 정확한 풀이를 위해 만세력으로 간지를 확인 후 입력해주세요.";
+    : "사주팔자 간지를 입력하지 않아 절기 기반 근사값으로 포국했습니다.";
 
   return {
-    meta: {
-      jeolgiKey, jeolgiName, type, baseGuksu, samwonKey,
-      sijiChar, warning,
-    },
+    meta:     { jeolgiKey, jeolgiName, type, baseGuksu, samwonKey, sijiChar, warning },
     analysis: {
-      jibanHong,
-      cheonbanHong,
-      segungIndex,
+      jibanHong, cheonbanHong, segungIndex,
       segungName:   GUGUNG[segungIndex]?.name || "",
       dayGanOhaeng: dayGan ? CHEONGAN[dayGan]?.ohaeng : null,
     },
+    giljung,
     board,
   };
 }
 
 
-// ── 10. AI 프롬프트 조립 ──────────────────────────
+// ── 10. 길흉 요약 도출 ────────────────────────────
+// 각 궁의 생극 점수 × 팔문 점수를 결합해 길방·흉방 TOP3 자동 선별
+function deriveGiljung(board, segungIndex) {
+  const scored = Object.values(board).map(g => {
+    const relationScore = g.relation.score;        // 0~100
+    const palmunScore   = g.palmun?.score ?? 55;   // 0~100
+    const combined      = Math.round(relationScore * 0.5 + palmunScore * 0.5);
+    return {
+      gungNum:   g.gungNum,
+      name:      g.gungInfo.name,
+      direction: g.gungInfo.direction,
+      palmunLabel: g.palmun?.label || "",
+      palmunDesc:  g.palmun?.desc  || "",
+      relationLabel: g.relation.label,
+      combined,
+      isSegung: g.isSegung,
+    };
+  });
+
+  // 세궁 제외하고 길방·흉방 분류
+  const others = scored.filter(g => !g.isSegung);
+  others.sort((a, b) => b.combined - a.combined);
+
+  return {
+    gilbang: others.slice(0, 3),          // 상위 3개 = 길방
+    hyungbang: others.slice(-3).reverse(), // 하위 3개 = 흉방
+    segung: scored.find(g => g.isSegung),
+  };
+}
+
+
+// ── 11. AI 프롬프트 조립 (팔문 포함) ─────────────
 function buildAiPrompt(result, userInput, topic) {
-  const { meta, analysis, board } = result;
+  const { meta, analysis, board, giljung } = result;
 
   const samwonLabel = { sang: "상원(上元)", jung: "중원(中元)", ha: "하원(下元)" };
 
+  // 구궁 포국 텍스트 (팔문 포함)
   const boardText = NAKSEO_PATH.map(gungNum => {
     const g = board[gungNum];
-    const r = g.relation;
     const segMark = g.isSegung ? " ★세궁" : "";
-    return `  ${g.gungInfo.name}(${g.gungInfo.direction}): 지반${g.jibansu} 천반${g.cheonbansu} [${r.label} ${r.score}점]${segMark}`;
+    return `  ${g.gungInfo.name}(${g.gungInfo.direction}): 지반${g.jibansu} 천반${g.cheonbansu} [${g.relation.label} ${g.relation.score}점] [${g.palmun.label} ${g.palmun.score}점]${segMark}`;
   }).join("\n");
+
+  // 길방·흉방 요약 텍스트
+  const gilText = giljung.gilbang.map((g, i) =>
+    `  ${i+1}위 ${g.name}(${g.direction}): ${g.palmunLabel} · ${g.relationLabel} — ${g.palmunDesc}`
+  ).join("\n");
+
+  const hyungText = giljung.hyungbang.map((g, i) =>
+    `  ${i+1}위 ${g.name}(${g.direction}): ${g.palmunLabel} · ${g.relationLabel} — ${g.palmunDesc}`
+  ).join("\n");
 
   const topicMap = {
     general:   "전반적인 운세 흐름, 길흉 방위, 주의사항, 추천 행동",
@@ -259,26 +269,24 @@ function buildAiPrompt(result, userInput, topic) {
     love:      "인간관계·애정운, 좋은 인연을 만나는 방위와 시기",
     direction: "이사·여행에 가장 길한 방위 TOP3와 피해야 할 방위",
   };
-
   const topicGuide = topicMap[topic] || topicMap.general;
+
   const hasSaju = !!(userInput.yearGan && userInput.monthGan && userInput.dayGan);
 
   const accuracyNote = hasSaju ? "" : `\
 [내부 지침 — 응답에 이 내용을 그대로 출력하지 마세요]
 이 포국은 사주팔자 간지 없이 절기 기반 근사값으로 산출되었습니다.
-해석 시 다음을 반드시 준수하세요:
-- 일간 오행·세궁이 근사치임을 감안해 단정적 표현보다 "가능성", "경향" 위주로 서술
-- 해석 본문에 정확도 한계를 언급하지 말 것 (사용자 UX 저해)
-- 응답 마지막에 딱 한 줄만, 아래 형식으로 안내 추가:
-  "📌 만세력으로 일진 간지를 입력하시면 세궁·용신 연계 정밀 분석이 가능합니다."
+- 단정적 표현보다 "가능성", "경향" 위주로 서술하세요.
+- 해석 본문에 정확도 한계를 언급하지 마세요.
+- 응답 마지막 한 줄에만: "📌 만세력으로 일진 간지를 입력하시면 정밀 분석이 가능합니다."
 `;
 
   const precisionNote = hasSaju ? `\
 [내부 지침 — 응답에 이 내용을 그대로 출력하지 마세요]
 사주팔자 간지가 모두 입력되었습니다.
-- 일간(${analysis.dayGanOhaeng} 오행) 기준 용신·기신 관계를 세궁 분석에 반드시 반영
-- 세궁 천반·지반 수의 오행 상생·상극 관계를 구체적으로 해석
-- 단정적이고 구체적인 시기·방위 조언 제공
+- 일간(${analysis.dayGanOhaeng} 오행) 기준 용신·기신 관계를 세궁 분석에 반드시 반영하세요.
+- 팔문과 생극 관계를 결합해 방위별 구체적 조언을 제공하세요.
+- 단정적이고 구체적인 시기·방위 조언을 제공하세요.
 ` : "";
 
   return `[시스템 역할]
@@ -302,15 +310,22 @@ ${accuracyNote}${precisionNote}
 - 천반 홍국수: ${analysis.cheonbanHong}
 - 세궁(世宮): ${analysis.segungIndex}번 ${analysis.segungName}
 
-## 구궁 포국 결과
+## 구궁 포국 결과 (지반 / 천반 / 생극관계 / 팔문)
 ${boardText}
+
+## 자동 산출 길흉 요약
+▶ 길방 TOP3
+${gilText}
+
+▶ 흉방 TOP3 (주의)
+${hyungText}
 
 ---
 
 ## 해석 요청 (주제: ${topicGuide})
-1. 세궁(${analysis.segungName})의 천반·지반 관계와 현재 운세 전체 흐름을 설명해주세요.
-2. 가장 길한 방위 TOP 3와 구체적 활용법(이동 방향, 사무실 배치, 기도 방위 등)을 알려주세요.
-3. 반드시 피해야 할 흉방과 회피 방법을 알려주세요.
+1. 세궁(${analysis.segungName})의 팔문·천반·지반 관계를 종합해 현재 운세 전체 흐름을 설명해주세요.
+2. 길방 TOP3의 팔문과 생극을 결합한 구체적 활용법(이동 방향·사무실 배치·기도 방위 등)을 알려주세요.
+3. 흉방의 팔문과 그 위험성을 설명하고 회피 방법을 알려주세요.
 4. ${topicGuide}에 맞춰 실용적이고 구체적인 조언을 해주세요.
 
 한국어로, 실용적이고 구체적으로 답해주세요.`;
