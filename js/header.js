@@ -7,7 +7,7 @@
     { href: 'index.html',   label: '사주입력' },
     { href: 'result.html',  label: '구궁결과' },
     { href: 'premium.html', label: '정밀풀이' },
-    { href: 'prompt.html',  label: 'AI질문' },
+    { href: 'prompt.html',  label: 'AI심층' },
   ];
 
   const navHTML = navItems.map(({ href, label }) =>
