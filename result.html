@@ -286,7 +286,8 @@
           <span>운세 점수</span><strong id="detailScore">-</strong>
         </div>
         <div class="gung-detail-row" id="detailPalmunRow">
-          <span>팔문</span><strong id="detailPalmun" style="text-align:right; max-width:70%; font-size:13px; color:var(--text-main);">-</strong>
+          <span>팔문</span>
+          <span id="detailPalmun" style="text-align:right; max-width:70%; font-size:13px;">-</span>
         </div>
         <!-- ① 궁 고유 해설 -->
         <div class="detail-gung-life mt-8" id="detailDesc">-</div>
@@ -586,7 +587,9 @@
       const pmValEl  = document.getElementById("detailPalmun");
       if (pmInfo2) {
         pmRowEl.style.display = "";
-        pmValEl.textContent   = pmInfo2.label + "  —  " + pmInfo2.desc;
+        pmValEl.innerHTML =
+          `<strong style="color:var(--gold); font-weight:700;">${pmInfo2.label}</strong>` +
+          `<span style="color:var(--text-muted);"> — ${pmInfo2.desc}</span>`;
       } else {
         pmRowEl.style.display = "none";
       }
