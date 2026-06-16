@@ -139,9 +139,8 @@ function getSegung(dayGan, jibanBoard) {
 }
 
 
-// ── 8. 최종 board 조립 (팔문 포함) ───────────────
+// ── 8. 최종 board 조립 (팔문 + 신살 포함) ────────
 function assembleBoard(jibanBoard, cheonbanBoard, segungIndex) {
-  // 팔문 배속 (data-gugung.js의 buildPalmunBoard 사용)
   const palmunBoard = buildPalmunBoard(segungIndex);
 
   const board = {};
@@ -150,6 +149,11 @@ function assembleBoard(jibanBoard, cheonbanBoard, segungIndex) {
     const cheon   = cheonbanBoard[gungNum] || 5;
     const palmunKey = palmunBoard[gungNum] || "복위";
 
+    // 신살 발동 체크
+    const sinsal = (typeof getSinsalForGung === "function")
+      ? getSinsalForGung(cheon, jiban)
+      : [];
+
     board[gungNum] = {
       gungNum,
       gungInfo:   GUGUNG[gungNum],
@@ -157,8 +161,9 @@ function assembleBoard(jibanBoard, cheonbanBoard, segungIndex) {
       cheonbansu: cheon,
       isSegung:   gungNum === segungIndex,
       relation:   getRelationType(cheon, jiban),
-      palmun:     PALMUN[palmunKey],      // 팔문 전체 데이터
-      palmunKey,                          // 팔문 키값 (생기·절명 등)
+      palmun:     PALMUN[palmunKey],
+      palmunKey,
+      sinsal,     // 발동된 신살 배열 (없으면 [])
     };
   }
   return board;
@@ -209,19 +214,21 @@ function runHongyeon(input) {
 
 
 // ── 10. 길흉 요약 도출 ────────────────────────────
-// 각 궁의 생극 점수 × 팔문 점수를 결합해 길방·흉방 TOP3 자동 선별
 function deriveGiljung(board, segungIndex) {
   const scored = Object.values(board).map(g => {
-    const relationScore = g.relation.score;        // 0~100
-    const palmunScore   = g.palmun?.score ?? 55;   // 0~100
-    const combined      = Math.round(relationScore * 0.5 + palmunScore * 0.5);
+    const relationScore = g.relation.score;
+    const palmunScore   = g.palmun?.score ?? 55;
+    // 신살 패널티 합산
+    const sinsalPenalty = (g.sinsal || []).reduce((acc, s) => acc + (s.score || 0), 0);
+    const combined = Math.max(0, Math.round(relationScore * 0.45 + palmunScore * 0.45 + sinsalPenalty * 0.1));
     return {
-      gungNum:   g.gungNum,
-      name:      g.gungInfo.name,
-      direction: g.gungInfo.direction,
-      palmunLabel: g.palmun?.label || "",
-      palmunDesc:  g.palmun?.desc  || "",
+      gungNum:       g.gungNum,
+      name:          g.gungInfo.name,
+      direction:     g.gungInfo.direction,
+      palmunLabel:   g.palmun?.label || "",
+      palmunDesc:    g.palmun?.desc  || "",
       relationLabel: g.relation.label,
+      sinsalLabels:  (g.sinsal || []).map(s => s.label),
       combined,
       isSegung: g.isSegung,
     };
@@ -250,11 +257,12 @@ function buildAiPrompt(result, userInput, topic) {
   // 구궁 포국 텍스트 (팔문 포함)
   const boardText = NAKSEO_PATH.map(gungNum => {
     const g = board[gungNum];
-    const segMark   = g.isSegung ? " ★세궁" : "";
-    const palmunStr = g.palmun
-      ? ` [${g.palmun.label} ${g.palmun.score}점]`
-      : ""; // 구버전 sessionStorage 호환
-    return `  ${g.gungInfo.name}(${g.gungInfo.direction}): 지반${g.jibansu} 천반${g.cheonbansu} [${g.relation.label} ${g.relation.score}점]${palmunStr}${segMark}`;
+    const segMark    = g.isSegung ? " ★세궁" : "";
+    const palmunStr  = g.palmun
+      ? ` [${g.palmun.label} ${g.palmun.score}점]` : "";
+    const sinsalStr  = (g.sinsal && g.sinsal.length > 0)
+      ? ` ⚡신살: ${g.sinsal.map(s => s.label).join("·")}` : "";
+    return `  ${g.gungInfo.name}(${g.gungInfo.direction}): 지반${g.jibansu} 천반${g.cheonbansu} [${g.relation.label} ${g.relation.score}점]${palmunStr}${sinsalStr}${segMark}`;
   }).join("\n");
 
   // 길방·흉방 요약 텍스트
@@ -340,7 +348,8 @@ ${hyungText}
 1. 세궁(${analysis.segungName})의 팔문·천반·지반 관계를 종합해 현재 운세 전체 흐름을 설명해주세요.
 2. 길방 TOP3의 팔문과 생극을 결합한 구체적 활용법(이동 방향·사무실 배치·기도 방위 등)을 알려주세요.
 3. 흉방의 팔문과 그 위험성을 설명하고 회피 방법을 알려주세요.
-4. ${topicGuide}에 맞춰 실용적이고 구체적인 조언을 해주세요.
+4. 신살(탕화살·수옥살·겁살·백호살 등)이 발동된 궁이 있다면, 어떤 위험인지 구체적으로 설명하고 대처법을 알려주세요.
+5. ${topicGuide}에 맞춰 실용적이고 구체적인 조언을 해주세요.
 
 한국어로, 실용적이고 구체적으로 답해주세요.`;
 }
