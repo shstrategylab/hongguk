@@ -329,7 +329,10 @@
   <script>
     // 저장된 결과 불러오기
     const result = JSON.parse(sessionStorage.getItem("hongyeon_result") || "null");
-    let palmunBoard = {};   // showDetail에서도 참조
+    let palmunBoard  = {};   // showDetail에서도 참조
+    let board         = {};   // showDetail에서도 참조
+    let analysis      = {};   // showDetail에서도 참조
+    let dongcheoNums  = new Set();  // showDetail에서도 참조
 
     if (!result) {
       alert("입력 데이터가 없습니다. 처음부터 시작해주세요.");
@@ -339,7 +342,9 @@
     }
 
     function renderResult(r) {
-      const { meta, analysis, board } = r;
+      const { meta } = r;
+      board    = r.board;
+      analysis = r.analysis;
 
       // 메타 정보
       document.getElementById("jeolgiName").textContent  = meta.jeolgiName;
@@ -417,7 +422,7 @@
         .sort((a, b) => b.score - a.score);
 
       const topDongcheo = dongcheoScores.slice(0, 2); // 상위 2개
-      const dongcheoNums = new Set(topDongcheo.map(d => d.g.gungNum));
+      dongcheoNums = new Set(topDongcheo.map(d => d.g.gungNum));
 
       // 동처 요약 카드 렌더링
       if (topDongcheo.length > 0) {
@@ -481,11 +486,39 @@
         grid.appendChild(cell);
       });
 
-      // 길흉 요약 (점수 내림차순)
-      const sorted = Object.values(board).sort((a, b) => b.relation.score - a.relation.score);
+      // 길흉 요약 — 결합 점수(생극 45% + 팔문 45% + 신살 10%) 기준 정렬
+      const giljung = r.giljung || deriveGiljung(board, analysis.segungIndex);
+      const combinedMap = {};
+      [...giljung.gilbang, ...giljung.hyungbang, giljung.segung]
+        .filter(Boolean)
+        .forEach(item => { combinedMap[item.gungNum] = item.combined; });
+
+      // combinedMap에 없는 궁(세궁 제외 외 나머지)도 보완 계산
+      Object.values(board).forEach(g => {
+        if (combinedMap[g.gungNum] === undefined) {
+          const relationScore = g.relation.score;
+          const palmunScore   = g.palmun?.score ?? 55;
+          const sinsalPenalty = (g.sinsal || []).reduce((acc, s) => acc + (s.score || 0), 0);
+          combinedMap[g.gungNum] = Math.max(0, Math.round(relationScore * 0.45 + palmunScore * 0.45 + sinsalPenalty * 0.1));
+        }
+      });
+
+      function combinedBadge(score) {
+        if (score >= 80) return "대길";
+        if (score >= 60) return "길";
+        if (score >= 40) return "중";
+        if (score >= 25) return "보통";
+        return "흉";
+      }
+
+      const sorted = Object.values(board)
+        .map(g => ({ g, combined: combinedMap[g.gungNum] }))
+        .sort((a, b) => b.combined - a.combined);
+
       const list = document.getElementById("summaryList");
       list.innerHTML = "";
-      sorted.forEach((g, i) => {
+      sorted.forEach(({ g, combined }, i) => {
+        const badge = combinedBadge(combined);
         const li = document.createElement("li");
         li.innerHTML = `
           <span class="summary-rank">${i + 1}</span>
@@ -493,13 +526,19 @@
             <div class="summary-item-header">
               <span class="summary-item-name">${g.gungInfo.name}</span>
               <span class="summary-item-dir">${g.gungInfo.direction}</span>
-              <span class="score-badge badge-${g.relation.badge}" style="position:static;">${g.relation.badge}</span>
+              <span class="score-badge badge-${badge}" style="position:static;">${badge} ${combined}점</span>
+              ${g.palmun ? `<span class="palmun-badge" style="font-size:10px; padding:2px 6px; border-radius:4px; background:rgba(180,140,80,0.1); color:var(--gold); border:1px solid var(--border);">${g.palmun.label}</span>` : ""}
             </div>
             <div class="summary-item-desc">${g.relation.desc}</div>
             ${g.relation.detail ? `
             <div class="summary-item-detail">
               <span class="summary-item-detail-arrow">↳</span>
               <span>${g.relation.detail}</span>
+            </div>` : ""}
+            ${(g.sinsal && g.sinsal.length > 0) ? `
+            <div class="summary-item-detail" style="border-left-color: rgba(200,60,40,0.4); background: rgba(180,50,30,0.06);">
+              <span class="summary-item-detail-arrow" style="color:#e07060;">⚡</span>
+              <span style="color:#c87060;">${g.sinsal.map(s => s.label).join(", ")} 발동 — ${g.sinsal.map(s => s.desc).join(" ")}</span>
             </div>` : ""}
           </div>
         `;
