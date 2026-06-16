@@ -130,7 +130,34 @@
       word-break: keep-all;
     }
 
-    /* ── 상세 패널 내부 ── */
+    /* ── 신살 배지 ── */
+    .sinsal-badge {
+      font-size: 9px;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background: rgba(180, 50, 30, 0.2);
+      border: 1px solid rgba(200, 60, 40, 0.4);
+      color: #e07060;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+    .sinsal-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 4px;
+    }
+    .sinsal-detail-block {
+      background: rgba(180,50,30,0.07);
+      border-left: 2px solid rgba(200,60,40,0.4);
+      border-radius: 0 4px 4px 0;
+      padding: 10px 12px;
+      font-size: 12px;
+      color: #c87060;
+      line-height: 1.75;
+      margin-top: 6px;
+    }
+    .sinsal-detail-block strong { color: #e07060; display: block; margin-bottom: 3px; }
     .detail-gung-life {
       font-size: 13px;
       color: var(--text-main);
@@ -217,6 +244,11 @@
         <div class="detail-relation-desc mt-8" id="detailExtra">-</div>
         <!-- ③ ↳ 부연설명 -->
         <div class="summary-item-detail mt-8" id="detailSub" style="display:none"></div>
+        <!-- ④ 신살 -->
+        <div id="detailSinsalWrap" style="display:none; margin-top:8px;">
+          <div style="font-size:12px; color:#e07060; margin-bottom:4px;">⚡ 발동 신살</div>
+          <div id="detailSinsalList"></div>
+        </div>
       </div>
     </div>
 
@@ -346,6 +378,9 @@
           <span class="gung-cheonban">天 ${g.cheonbansu}</span>
           <span class="gung-keyword">${g.gungInfo.desc}</span>
           ${pmInfo ? `<span class="palmun-badge ${pmClass}">${pmInfo.label.replace(/\(.*\)/,"")}</span>` : ""}
+          ${(g.sinsal && g.sinsal.length > 0)
+            ? `<div class="sinsal-list">${g.sinsal.map(s => `<span class="sinsal-badge">${s.symbol || "⚡"}${s.label.replace(/\(.*\)/,"")}</span>`).join("")}</div>`
+            : ""}
           <div class="score-bar-wrap" style="width:100%; margin-top:4px;">
             <div class="score-bar ${scoreClass}" style="width:${rel.score}%"></div>
           </div>
@@ -440,6 +475,22 @@
       } else {
         subEl.style.display = "none";
         subEl.innerHTML = "";
+      }
+
+      // ④ 신살
+      const sinsalWrap = document.getElementById("detailSinsalWrap");
+      const sinsalList = document.getElementById("detailSinsalList");
+      if (g.sinsal && g.sinsal.length > 0) {
+        sinsalWrap.style.display = "block";
+        sinsalList.innerHTML = g.sinsal.map(s => `
+          <div class="sinsal-detail-block">
+            <strong>${s.symbol || "⚡"} ${s.label} — ${s.severity}</strong>
+            ${s.desc}<br>
+            <span style="opacity:.8; font-size:11px;">↳ ${s.detail}</span>
+          </div>`).join("");
+      } else {
+        sinsalWrap.style.display = "none";
+        sinsalList.innerHTML = "";
       }
 
       detail.scrollIntoView({ behavior: "smooth", block: "nearest" });
