@@ -303,6 +303,29 @@ function buildAiPrompt(result, userInput, topic) {
 - 단정적이고 구체적인 시기·방위 조언을 제공하세요.
 ` : "";
 
+  // 동처 분석 텍스트
+  const dongcheoText = Object.values(board)
+    .filter(g => !g.isSegung)
+    .map(g => {
+      let score = 0;
+      if (g.relation.label.includes("천극지")) score += 40;
+      else if (g.relation.label.includes("지극천")) score += 25;
+      if ((g.palmun?.score ?? 50) <= 15) score += 35;
+      else if ((g.palmun?.score ?? 50) >= 95) score += 25;
+      score += (g.sinsal || []).length * 20;
+      return { g, score };
+    })
+    .filter(d => d.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 2)
+    .map(({ g }) => {
+      const reasons = [];
+      if (g.relation.label.includes("극")) reasons.push(g.relation.label);
+      if (g.palmun?.score <= 15 || g.palmun?.score >= 95) reasons.push(g.palmun.label);
+      if (g.sinsal?.length) reasons.push(g.sinsal.map(s => s.label).join("·"));
+      return `  ${g.gungInfo.name}(${g.gungInfo.direction}): ${reasons.join(", ")}`;
+    }).join("\n") || "  특이 동처 없음";
+
   return `[시스템 역할]
 당신은 홍연기문(홍국기문) 전문 역술가입니다. 아래 포국 데이터와 내부 지침을 바탕으로 심층 운세 해석을 제공하세요.
 
@@ -342,9 +365,10 @@ ${gilText}
 ▶ 흉방 TOP3 (주의)
 ${hyungText}
 
----
+## 동처(動處) — 현재 가장 활성화된 방위
+${dongcheoText}
 
-## 해석 요청 (주제: ${topicGuide})
+--- (주제: ${topicGuide})
 1. 세궁(${analysis.segungName})의 팔문·천반·지반 관계를 종합해 현재 운세 전체 흐름을 설명해주세요.
 2. 길방 TOP3의 팔문과 생극을 결합한 구체적 활용법(이동 방향·사무실 배치·기도 방위 등)을 알려주세요.
 3. 흉방의 팔문과 그 위험성을 설명하고 회피 방법을 알려주세요.
