@@ -367,10 +367,25 @@
   <script>
     // 저장된 결과 불러오기
     const result = JSON.parse(sessionStorage.getItem("hongyeon_result") || "null");
-    let palmunBoard  = {};   // showDetail에서도 참조
-    let board         = {};   // showDetail에서도 참조
-    let analysis      = {};   // showDetail에서도 참조
-    let dongcheoNums  = new Set();  // showDetail에서도 참조
+    let palmunBoard   = {};
+    let board         = {};
+    let analysis      = {};
+    let dongcheoNums  = new Set();
+    let combinedMap   = {};       // showDetail에서도 참조
+    let currentMapMode = 'traditional';
+    const GRID_TRADITIONAL = [4, 9, 2, 3, 5, 7, 8, 1, 6];
+    const GRID_MODERN      = [8, 1, 6, 3, 5, 7, 4, 9, 2];
+
+    // 방위 토글 — HTML onclick에서 직접 호출하므로 전역 함수로 선언
+    function setMapMode(mode) {
+      currentMapMode = mode;
+      document.getElementById('btnTraditional').classList.toggle('active', mode === 'traditional');
+      document.getElementById('btnModern').classList.toggle('active', mode === 'modern');
+      document.getElementById('mapModeDesc').textContent = mode === 'traditional'
+        ? '황제가 남쪽을 바라보는 전통 방식'
+        : '우리가 학교에서 배운 현대 지도 방식';
+      renderGrid();
+    }
 
     if (!result) {
       alert("입력 데이터가 없습니다. 처음부터 시작해주세요.");
@@ -475,25 +490,6 @@
         }).join("<br>");
       }
 
-      // ── 방위 배열 모드 ─────────────────────────────────
-      // 전통(남↑): [4손,9이,2곤 / 3진,5중,7태 / 8간,1감,6건]
-      // 현대(북↑): [8간,1감,6건 / 3진,5중,7태 / 4손,9이,2곤]
-      const GRID_TRADITIONAL = [4, 9, 2, 3, 5, 7, 8, 1, 6];
-      const GRID_MODERN      = [8, 1, 6, 3, 5, 7, 4, 9, 2];
-
-      let currentMapMode = 'traditional';
-      let combinedMap = {};  // showDetail에서도 접근 가능하도록 상위 스코프 선언
-
-      function setMapMode(mode) {
-        currentMapMode = mode;
-        document.getElementById('btnTraditional').classList.toggle('active', mode === 'traditional');
-        document.getElementById('btnModern').classList.toggle('active', mode === 'modern');
-        document.getElementById('mapModeDesc').textContent = mode === 'traditional'
-          ? '황제가 남쪽을 바라보는 전통 방식'
-          : '우리가 학교에서 배운 현대 지도 방식';
-        renderGrid();
-      }
-
       // 구궁도 그리드 렌더링
       function renderGrid() {
         const gridOrder = currentMapMode === 'traditional' ? GRID_TRADITIONAL : GRID_MODERN;
@@ -552,7 +548,7 @@
 
       // 길흉 요약 — 결합 점수(생극 45% + 팔문 45% + 신살 10%) 기준 정렬
       const giljung = r.giljung || deriveGiljung(board, analysis.segungIndex);
-      combinedMap = {};  // 상위 스코프 변수 초기화
+      combinedMap = {};
       [...giljung.gilbang, ...giljung.hyungbang, giljung.segung]
         .filter(Boolean)
         .forEach(item => { combinedMap[item.gungNum] = item.combined; });
