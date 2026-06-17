@@ -305,13 +305,16 @@ function deriveGiljung(board, segungIndex) {
 
   // [FIX 4] 팔문 tier "길"인 궁만 길방 후보로 허용
   //         → 유혼(遊魂) 이하 흉문이 길방에 오르는 모순 방지
-  const gilCandidates = others.filter(g => g.palmunTier === "길");
+  // [FIX 4-b] 세궁이 생기·복덕·천의 중 하나를 차지해 길방 후보가 2개 이하로 줄어도
+  //           유혼·화해가 앞에 오지 않도록 tier "길" 우선, 부족분만 흉문 상위로 보충
+  const gilTier   = others.filter(g => g.palmunTier === "길");
+  const hyungTier = others.filter(g => g.palmunTier !== "길");
 
-  // 길방 후보가 3개 미만인 극단적 포국(흉문만 가득한 경우) 대비
-  // → tier 무관하게 상위 3개로 채움
-  const gilbang = gilCandidates.length >= 3
-    ? gilCandidates.slice(0, 3)
-    : others.slice(0, 3);
+  // 길방: tier "길" 우선 채우고 부족하면 tier "흉" 상위 점수로 보충
+  const gilbang = [
+    ...gilTier.slice(0, 3),
+    ...hyungTier.slice(0, Math.max(0, 3 - gilTier.length)),
+  ].slice(0, 3);
 
   return {
     gilbang,
