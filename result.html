@@ -482,6 +482,7 @@
       const GRID_MODERN      = [8, 1, 6, 3, 5, 7, 4, 9, 2];
 
       let currentMapMode = 'traditional';
+      let combinedMap = {};  // showDetail에서도 접근 가능하도록 상위 스코프 선언
 
       function setMapMode(mode) {
         currentMapMode = mode;
@@ -551,7 +552,7 @@
 
       // 길흉 요약 — 결합 점수(생극 45% + 팔문 45% + 신살 10%) 기준 정렬
       const giljung = r.giljung || deriveGiljung(board, analysis.segungIndex);
-      const combinedMap = {};
+      combinedMap = {};  // 상위 스코프 변수 초기화
       [...giljung.gilbang, ...giljung.hyungbang, giljung.segung]
         .filter(Boolean)
         .forEach(item => { combinedMap[item.gungNum] = item.combined; });
