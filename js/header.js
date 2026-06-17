@@ -6,6 +6,7 @@
     { href: 'learn.html',   label: '배우기' },
     { href: 'index.html',   label: '사주입력' },
     { href: 'result.html',  label: '구궁결과' },
+    { href: 'family.html',  label: '가족비교' },
     { href: 'premium.html', label: '정밀풀이' },
     { href: 'prompt.html',  label: 'AI심층' },
   ];
