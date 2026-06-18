@@ -124,6 +124,18 @@
       text-align: center;
       padding: 12px 0;
     }
+    .toggle-wrap { display:flex; gap:6px; margin-top:4px; margin-bottom:8px; }
+    .toggle-btn {
+      flex:1; padding:8px; border-radius:6px; cursor:pointer;
+      border:1px solid var(--border); background:var(--bg-panel);
+      color:var(--text-muted); font-family:'Noto Sans KR',sans-serif;
+      font-size:12px; transition:all 0.2s;
+    }
+    .toggle-btn.active {
+      background:rgba(180,140,80,0.12);
+      border-color:var(--border-glow);
+      color:var(--gold);
+    }
   </style>
 </head>
 <body>
@@ -170,6 +182,13 @@
 
   </main>
 
+  <!-- 음양력 변환 DB (1930~2050) -->
+  <script src="js/lunar_calendar.js"></script>
+
+  <!-- 만세력 DB (정확한 일주·연주·절기 계산) -->
+  <script src="js/manse-db.js"></script>
+  <script src="js/solar-terms-db.js"></script>
+
   <!-- 데이터 + 엔진 -->
   <script src="js/data-jeolgi.js"></script>
   <script src="js/data-ganji.js"></script>
@@ -195,6 +214,16 @@
               value="${DEFAULT_LABELS[idx] || ('구성원' + (idx+1))}"
               style="font-size:13px; font-weight:600; color:var(--gold); border:none; background:transparent; padding:0; width:120px;">
             ${idx > 1 ? `<button type="button" class="remove-member-btn" onclick="removeMember(${idx})">삭제</button>` : ""}
+          </div>
+          <div class="form-group">
+            <label class="form-label">양력 / 음력</label>
+            <div class="toggle-wrap">
+              <button type="button" class="toggle-btn active" id="calBtnSolar-${idx}"
+                onclick="setCalType(${idx}, 'solar')">양력</button>
+              <button type="button" class="toggle-btn" id="calBtnLunar-${idx}"
+                onclick="setCalType(${idx}, 'lunar')">음력</button>
+            </div>
+            <input type="hidden" id="calType-${idx}" value="solar">
           </div>
           <div class="form-row">
             <div class="form-group">
@@ -244,6 +273,12 @@
       `;
     }
 
+    function setCalType(idx, type) {
+      document.getElementById(`calType-${idx}`).value = type;
+      document.getElementById(`calBtnSolar-${idx}`).classList.toggle('active', type === 'solar');
+      document.getElementById(`calBtnLunar-${idx}`).classList.toggle('active', type === 'lunar');
+    }
+
     function addMember() {
       if (memberCount >= MAX_MEMBERS) {
         alert(`최대 ${MAX_MEMBERS}명까지 비교 가능합니다.`);
@@ -279,6 +314,7 @@
         const day   = parseInt(document.getElementById(`day-${idx}`).value);
         const siji  = document.getElementById(`siji-${idx}`).value;
         const gender = document.getElementById(`gender-${idx}`).value;
+        const calType = document.getElementById(`calType-${idx}`).value;
         const label = document.getElementById(`memberLabel-${idx}`).value || `구성원${idx}`;
 
         if (!year || !month || !day) return; // 미입력 행은 스킵
@@ -288,9 +324,10 @@
           hour: siji ? SIJI_TO_HOUR[siji] : 12,
           siji: siji || "",
           gender,
+          calType,
         };
         const result = runHongyeon(input);
-        members.push({ label, input, result });
+        members.push({ label, input, result, calType });
       });
 
       if (members.length < 2) {
@@ -316,7 +353,13 @@
         ).join("");
         return `
           <div class="compare-col">
-            <div class="compare-col-name">${m.label}</div>
+            <div class="compare-col-name">${m.label}${
+              m.calType === 'lunar'
+                ? (m.result.meta.convertedFromLunar
+                    ? ` <span style="color:#6dbf87; font-size:10px;">(음력→양력 ${m.result.meta.solarDateUsed} 정확변환)</span>`
+                    : ' <span style="color:#e0a060; font-size:10px;">(음력·근사— 변환표 범위 밖)</span>')
+                : ''
+            }</div>
             ${gilRows}
             <div style="border-top:1px solid var(--border); margin:6px 0;"></div>
             ${hyungRows}
