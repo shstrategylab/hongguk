@@ -216,18 +216,25 @@ function assembleBoard(jibanBoard, cheonbanBoard, segungIndex) {
 
 
 // ── 8-b. 만세력 DB 기반 간지 자동 보완 ────────────
-// [신규] manse-db.js(일주 DB) + solar-terms-db.js(정확 절기 DB) +
-//        lunar_calendar.js(음양력 변환표, 1930~2050)가 로드되어 있고
-//        사용자가 간지를 직접 입력하지 않았다면 생년월일로부터
-//        일주(日柱)·연주·월주·절기를 정확히 채워준다.
-//        - 음력 입력(calType: 'lunar'/'leap')이면 먼저 lunar_calendar.js로
-//          양력으로 변환한 뒤, 변환된 양력 날짜로 나머지 단계를 동일하게 진행.
-//        - 윤달(leap)은 lunarToSolarDate(y, m, d, true)로 정확히 구분 처리.
-//        - DB 커버 범위(일주 1950~2050 / 절기 2010~2050 / 음양력 1930~2050)
-//          밖이면 채우지 않고 기존 근사 로직으로 자연히 폴백된다.
+// [v2.4 변경] 계산식(만세력 DB) 우선 원칙: 사용자가 간지를 직접 입력했더라도
+//        DB로 정확히 계산 가능하면 계산값을 최종값으로 사용한다.
+//        사용자가 직접 입력한 값은 _userXxx 필드에 그대로 보존해
+//        runHongyeon()에서 "직접입력 vs 계산값" 비교에 활용한다.
+//        DB 커버 범위(일주 1950~2050 / 절기 2010~2050 / 음양력 1930~2050)
+//        밖이면 계산이 불가능하므로, 그 경우에 한해 사용자 입력값을 그대로 쓴다.
 function autoFillGanjiFromManseDB(input) {
   const filled = { ...input };
   let { year, month, day, calType } = input;
+
+  // 사용자가 직접 입력한 간지를 비교/검산용으로 먼저 보존해둔다.
+  filled._userYearGan  = input.yearGan  || null;
+  filled._userYearJi   = input.yearJi   || null;
+  filled._userMonthGan = input.monthGan || null;
+  filled._userMonthJi  = input.monthJi  || null;
+  filled._userDayGan   = input.dayGan   || null;
+  filled._userDayJi    = input.dayJi    || null;
+  filled._userHourGan  = input.hourGan  || null;
+  filled._userHourJi   = input.hourJi   || null;
 
   if (!year || !month || !day) return filled;
 
@@ -247,16 +254,16 @@ function autoFillGanjiFromManseDB(input) {
       filled._convertedFromLunar = true;
       filled._solarDate = `${year}-${String(month).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
     } else {
-      // 변환표 범위 밖(1930~2050 밖) — 변환 불가, 근사 모드로 폴백
+      // 변환표 범위 밖(1930~2050 밖) — 변환 불가, 입력값 그대로 폴백
       return filled;
     }
   } else if (calType === "lunar" || calType === "leap") {
-    // lunar_calendar.js가 로드되지 않은 환경 — 기존처럼 근사 모드로 폴백
+    // lunar_calendar.js가 로드되지 않은 환경 — 기존처럼 입력값 그대로 폴백
     return filled;
   }
 
-  // ① 일주(日柱) 자동 채움 — 사용자가 직접 입력 안 했을 때만
-  if (!filled.dayGan && typeof getDayGanjiFromDB === "function") {
+  // ① 일주(日柱) — 계산식 우선 (직접 입력했어도 DB 계산값으로 덮어씀)
+  if (typeof getDayGanjiFromDB === "function") {
     const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     const dayGanji = getDayGanjiFromDB(dateStr);
     if (dayGanji) {
@@ -266,8 +273,8 @@ function autoFillGanjiFromManseDB(input) {
     }
   }
 
-  // ② 연주(年柱) 자동 채움 — 입춘 이전이면 전년도 간지 사용(절입 보정)
-  if (!filled.yearGan && typeof getYearGanjiFromDB === "function") {
+  // ② 연주(年柱) — 계산식 우선. 입춘 이전이면 전년도 간지 사용(절입 보정)
+  if (typeof getYearGanjiFromDB === "function") {
     let targetYear = year;
     // 입춘(보통 2/4 전후) 이전 출생이면 전년도 간지를 써야 함
     const isBeforeIpchun = (month === 1) || (month === 2 && day < 4);
@@ -289,11 +296,11 @@ function autoFillGanjiFromManseDB(input) {
     }
   }
 
-  // ④ 월주(月柱) 자동 채움 — 절기 키 + 연간(年干)이 확보된 후에만 가능
-  //    (연간은 ②에서 DB로 채워졌거나 사용자가 직접 입력한 값을 사용)
-  if (!filled.monthGan && typeof getMonthGanjiFromJeolgi === "function") {
+  // ④ 월주(月柱) — 계산식 우선. 절기 키 + 연간(年干)이 확보된 후에만 가능
+  //    (연간은 ②에서 계산식으로 이미 갱신된 값을 우선 사용)
+  if (typeof getMonthGanjiFromJeolgi === "function") {
     const jeolgiForMonth = filled._exactJeolgiKey || getCurrentJeolgi(month, day);
-    const yearGanForMonth = filled.yearGan; // ②에서 이미 채워졌거나 원래 입력값
+    const yearGanForMonth = filled.yearGan; // ②에서 계산식으로 갱신된 값(또는 원래 입력값)
     if (yearGanForMonth) {
       const { monthGan, monthJi } = getMonthGanjiFromJeolgi(jeolgiForMonth, yearGanForMonth);
       if (monthGan && monthJi) {
@@ -355,6 +362,31 @@ function getMonthGanjiFromJeolgi(jeolgiKey, yearGan) {
 }
 
 
+// ── 8-d. 시주(時柱) 자동 계산 ──────────────────────
+// 시두법(時頭法/오자시법): 일간(日干)에 따라 자시(子時)의 시간(時干)이 정해지고,
+// 그 뒤로는 천간이 순서대로 돌아간다. 만세력 DB 없이도 100% 공식으로 산출 가능.
+// 갑·기일→갑자시 / 을·경일→병자시 / 병·신일→무자시 / 정·임일→경자시 / 무·계일→임자시
+const SIDU_START_GAN = {
+  갑: "갑", 기: "갑",
+  을: "병", 경: "병",
+  병: "무", 신: "무",
+  정: "경", 임: "경",
+  무: "임", 계: "임",
+};
+const JIJI_ORDER_FROM_JA = ["자","축","인","묘","진","사","오","미","신","유","술","해"];
+
+function getHourGanjiFromDayGan(dayGan, siji) {
+  if (!dayGan || !siji || !SIDU_START_GAN[dayGan]) return { hourGan: null, hourJi: siji || null };
+  const startGan = SIDU_START_GAN[dayGan];
+  const startIdx = GAN_ORDER.indexOf(startGan);
+  const jiIdx    = JIJI_ORDER_FROM_JA.indexOf(siji);
+  if (jiIdx === -1) return { hourGan: null, hourJi: siji };
+
+  const hourGan = GAN_ORDER[(startIdx + jiIdx) % 10];
+  return { hourGan, hourJi: siji };
+}
+
+
 // ── 9. 메인 포국 함수 ─────────────────────────────
 function runHongyeon(rawInput) {
   // 만세력 DB로 빈 간지·정확 절기를 먼저 보완 (DB 미로드 시 안전하게 통과)
@@ -364,11 +396,20 @@ function runHongyeon(rawInput) {
     year, month, day, hour, siji,
     yearGan, yearJi, monthGan, monthJi,
     dayGan,  dayJi,  hourGan,  hourJi,
-    _exactJeolgiKey, _dayGanjiSource, _yearGanjiSource,
+    _exactJeolgiKey, _dayGanjiSource, _yearGanjiSource, _monthGanjiSource,
     _convertedFromLunar, _solarDate,
+    _userYearGan, _userYearJi, _userMonthGan, _userMonthJi,
+    _userDayGan,  _userDayJi,  _userHourGan,  _userHourJi,
   } = input;
 
   const sijiChar   = hourJi || siji || getHourToSiji(hour || 12);
+
+  // 시주(時柱) — 시두법(時頭法)으로 계산식 우선 산출. 일간이 없으면 직접입력값으로 폴백.
+  const hourCalc        = getHourGanjiFromDayGan(dayGan, sijiChar);
+  const hourGanFinal     = hourCalc.hourGan || hourGan || null;
+  const hourJiFinal      = sijiChar;
+  const hourGanjiSource  = hourCalc.hourGan ? "calc" : (hourGan ? "manual" : "none");
+
   // 정확 절기 DB(2010~2050)가 있으면 우선 사용, 없으면 근사 로직 폴백
   const jeolgiKey  = _exactJeolgiKey || getCurrentJeolgi(month, day);
   const samwonKey  = getSamwon(dayGan, dayJi, monthJi);
@@ -376,8 +417,8 @@ function runHongyeon(rawInput) {
 
   const jibanBoard = buildJibanBoard(baseGuksu, type);
 
-  const saju8     = [yearGan, yearJi, monthGan, monthJi, dayGan, dayJi, hourGan, sijiChar].filter(Boolean);
-  const cheongan4 = [yearGan, monthGan, dayGan, hourGan].filter(Boolean);
+  const saju8     = [yearGan, yearJi, monthGan, monthJi, dayGan, dayJi, hourGanFinal, hourJiFinal].filter(Boolean);
+  const cheongan4 = [yearGan, monthGan, dayGan, hourGanFinal].filter(Boolean);
   const { jibanHong, cheonbanHong } = calcHongguksu(saju8, cheongan4);
 
   const cheonbanBoard = buildCheonbanBoard(jibanBoard, jibanHong, cheonbanHong, type);
@@ -388,10 +429,33 @@ function runHongyeon(rawInput) {
   const giljung = deriveGiljung(board, segungIndex);
 
   const hasSaju = !!(yearGan && monthGan && dayGan);
-  const isAutoFilled = !!(_dayGanjiSource || _yearGanjiSource);
+  const isAutoFilled = !!(_dayGanjiSource || _yearGanjiSource || _monthGanjiSource);
   const warning = hasSaju
-    ? null // 직접입력 또는 DB자동보완(양력/음력 변환 포함) 모두 정상 — 경고 없음
-    : "사주팔자 간지를 입력하지 않아 절기 기반 근사값으로 포국했습니다. (만세력 DB 범위 밖)";
+    ? null // 계산식(만세력) 또는 직접입력 폴백 모두 정상 — 경고 없음
+    : "사주팔자 간지를 산출하지 못해 절기 기반 근사값으로 포국했습니다. (만세력 DB 범위 밖)";
+
+  // ── 계산값 vs 직접입력값 비교 (검산용) ───────────
+  // 결과는 항상 계산식(만세력) 값을 우선 사용하며, 직접 입력한 값과 다르면 알려준다.
+  const pairGanji = (gan, ji) => (gan && ji) ? `${gan}${ji}` : null;
+  const ganjiSource = {
+    year:  _yearGanjiSource  ? "calc" : (yearGan  ? "manual" : "none"),
+    month: _monthGanjiSource ? "calc" : (monthGan ? "manual" : "none"),
+    day:   _dayGanjiSource   ? "calc" : (dayGan   ? "manual" : "none"),
+    hour:  hourGanjiSource,
+  };
+  const ganjiCompare = {
+    year:  { computed: pairGanji(yearGan, yearJi),         user: pairGanji(_userYearGan,  _userYearJi)  },
+    month: { computed: pairGanji(monthGan, monthJi),       user: pairGanji(_userMonthGan, _userMonthJi) },
+    day:   { computed: pairGanji(dayGan, dayJi),           user: pairGanji(_userDayGan,   _userDayJi)   },
+    hour:  { computed: pairGanji(hourGanFinal, hourJiFinal), user: pairGanji(_userHourGan, _userHourJi) },
+  };
+  const ganjiMismatch = Object.entries(ganjiCompare)
+    .filter(([, v]) => v.user && v.computed && v.user !== v.computed)
+    .map(([k]) => k);
+  const PILLAR_LABEL = { year: "연주", month: "월주", day: "일주", hour: "시주" };
+  const ganjiNotice = ganjiMismatch.length
+    ? `입력하신 ${ganjiMismatch.map(k => PILLAR_LABEL[k]).join("·")} 간지가 만세력 계산값과 달라, 계산값을 우선 적용했습니다.`
+    : null;
 
   return {
     meta: {
@@ -399,11 +463,19 @@ function runHongyeon(rawInput) {
       isAutoFilled,
       convertedFromLunar: !!_convertedFromLunar, // 음력→양력 변환이 일어났는지
       solarDateUsed: _solarDate || null,         // 변환된(또는 원래) 양력 날짜
+      ganjiSource,    // 각 기둥이 계산식(calc)인지 직접입력(manual)인지
+      ganjiNotice,    // 직접입력과 계산값이 다를 때 안내 문구 (없으면 null)
     },
     analysis: {
       jibanHong, cheonbanHong, segungIndex,
       segungName:   GUGUNG[segungIndex]?.name || "",
       dayGanOhaeng: dayGan ? CHEONGAN[dayGan]?.ohaeng : null,
+      // 최종 적용된(계산식 우선) 사주팔자 — result.html 등에서 "입력 정보" 표시용
+      yearGanji:  pairGanji(yearGan, yearJi),
+      monthGanji: pairGanji(monthGan, monthJi),
+      dayGanji:   pairGanji(dayGan, dayJi),
+      hourGanji:  pairGanji(hourGanFinal, hourJiFinal),
+      ganjiMismatch,
     },
     giljung,
     board,
@@ -515,8 +587,8 @@ function buildAiPrompt(result, userInput, topic) {
   };
   const topicGuide = topicMap[topic] || topicMap.general;
 
-  const hasSaju    = !!(userInput.yearGan && userInput.monthGan && userInput.dayGan);
-  const hasAnySaju = !!(userInput.yearGan || userInput.monthGan || userInput.dayGan || userInput.hourGan);
+  const hasSaju    = !!(analysis.yearGanji && analysis.monthGanji && analysis.dayGanji);
+  const hasAnySaju = !!(analysis.yearGanji || analysis.monthGanji || analysis.dayGanji || analysis.hourGanji);
 
   const accuracyNote = hasSaju ? "" : `\
 [내부 지침 — 응답에 이 내용을 그대로 출력하지 마세요]
@@ -568,13 +640,17 @@ ${accuracyNote}${precisionNote}
 - 양력/음력: ${userInput.calType === 'solar' ? '양력' : userInput.calType === 'lunar' ? '음력' : '음력 윤달'}
 - 성별: ${userInput.gender || '미입력'}
 
-## 사주팔자 (간지)
+## 사주팔자 (간지) — 만세력 계산식 우선 적용
 ${hasAnySaju
-  ? `- 연주: ${userInput.yearGan || '?'}${userInput.yearJi || '?'}
-- 월주: ${userInput.monthGan || '?'}${userInput.monthJi || '?'}
-- 일주: ${userInput.dayGan || '?'}${userInput.dayJi || '?'}
-- 시주: ${userInput.hourGan || '?'}${userInput.hourJi || meta.sijiChar || '?'}`
-  : `- 간지 미입력 (절기 기반 근사 포국)`}
+  ? `- 연주: ${analysis.yearGanji || '?'}
+- 월주: ${analysis.monthGanji || '?'}
+- 일주: ${analysis.dayGanji || '?'}
+- 시주: ${analysis.hourGanji || meta.sijiChar || '?'}${
+  (analysis.ganjiMismatch && analysis.ganjiMismatch.length)
+    ? `\n- 참고: 직접 입력한 간지와 계산값이 달라 계산값을 우선 사용함 (${analysis.ganjiMismatch.join(', ')})`
+    : ''
+}`
+  : `- 간지 미산출 (절기 기반 근사 포국)`}
 
 ## 절기·포국 정보
 - 절기: ${meta.jeolgiName} / ${meta.type} ${meta.baseGuksu}국
