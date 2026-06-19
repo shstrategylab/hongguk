@@ -6,18 +6,35 @@
   <title>홍연 마스터 — 구궁도 결과</title>
   <link rel="stylesheet" href="css/style.css">
   <style>
-    .input-info-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 12px;
-      font-size: 13px;
-      padding: 7px 0;
-      border-bottom: 1px solid rgba(255,255,255,0.04);
-      color: var(--text-muted);
+    #inputInfoCard {
+      padding: 10px 14px;
+      margin-bottom: 12px;
     }
-    .input-info-row:last-child { border-bottom: none; }
-    .input-info-row strong { color: var(--text-main); text-align: right; font-weight: 500; }
+    #inputInfoCard .card-title {
+      font-size: 12px;
+      margin-bottom: 6px;
+      opacity: 0.85;
+    }
+    .input-info-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .input-info-tag {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 3px 10px;
+      font-size: 11px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      letter-spacing: 0.02em;
+    }
+    .input-info-tag strong {
+      color: var(--gold);
+      font-weight: 600;
+      margin-left: 2px;
+    }
 
     .meta-bar {
       display: flex;
@@ -256,9 +273,9 @@
   <main class="container">
 
     <!-- 입력하신 사주 정보 (누구의 결과인지 한눈에 확인) -->
-    <div class="card" id="inputInfoCard" style="display:none; margin-bottom: 16px;">
+    <div class="card" id="inputInfoCard" style="display:none;">
       <div class="card-title">🔮 입력하신 사주 정보</div>
-      <div id="inputInfoGrid"></div>
+      <div class="input-info-tags" id="inputInfoGrid"></div>
     </div>
 
     <!-- 메타 정보 -->
@@ -493,17 +510,14 @@
       return `${gungName}은 매우 강한 흉기가 집중되어 있습니다. 이동·계약·투자를 피하고 현상 유지에 집중하세요.`;
     }
 
-    // 시지(時支) → 표시 라벨
+    // 시지(時支) → 표시 라벨 (간략형)
     const SIJI_LABEL = {
-      자: "자시(子時) · 23~1시",  축: "축시(丑時) · 1~3시",
-      인: "인시(寅時) · 3~5시",   묘: "묘시(卯時) · 5~7시",
-      진: "진시(辰時) · 7~9시",   사: "사시(巳時) · 9~11시",
-      오: "오시(午時) · 11~13시", 미: "미시(未時) · 13~15시",
-      신: "신시(申時) · 15~17시", 유: "유시(酉時) · 17~19시",
-      술: "술시(戌時) · 19~21시", 해: "해시(亥時) · 21~23시",
+      자: "자시(23~1시)", 축: "축시(1~3시)", 인: "인시(3~5시)", 묘: "묘시(5~7시)",
+      진: "진시(7~9시)",  사: "사시(9~11시)", 오: "오시(11~13시)", 미: "미시(13~15시)",
+      신: "신시(15~17시)", 유: "유시(17~19시)", 술: "술시(19~21시)", 해: "해시(21~23시)",
     };
 
-    // 입력하신 사주 정보 카드 렌더링 — 누구의 결과인지 상단에서 바로 확인 가능하도록
+    // 입력하신 사주 정보 카드 렌더링 — 누구의 결과인지 짧은 태그 형태로 한 줄에 표시
     function renderInputInfo(input, r) {
       const card = document.getElementById("inputInfoCard");
       const grid = document.getElementById("inputInfoGrid");
@@ -512,32 +526,29 @@
       const calLabel = input.calType === "lunar" ? "음력"
                       : input.calType === "leap"  ? "음력(윤달)"
                       : "양력";
-      const genderLabel = input.gender === "여" ? "여성" : input.gender === "남" ? "남성" : "미입력";
-      const sijiLabel = input.siji
-        ? (SIJI_LABEL[input.siji] || input.siji)
-        : "미입력 (정오 기준 근사 계산)";
+      const genderLabel = input.gender === "여" ? "여성" : input.gender === "남" ? "남성" : "성별 미입력";
+      const sijiLabel = input.siji ? SIJI_LABEL[input.siji] || input.siji : "시 미입력(근사)";
 
-      let birthLine = `${input.year}년 ${input.month}월 ${input.day}일 (${calLabel})`;
+      const pad2 = n => String(n).padStart(2, "0");
+      let birthLabel = `${calLabel} ${input.year}.${pad2(input.month)}.${pad2(input.day)}`;
       if (r?.meta?.convertedFromLunar && r.meta.solarDateUsed) {
-        birthLine += ` → 양력 ${r.meta.solarDateUsed} 환산`;
+        birthLabel += ` (양력 ${r.meta.solarDateUsed})`;
       }
 
       const sajuParts = [];
-      if (input.yearGan && input.yearJi)   sajuParts.push(`연주 ${input.yearGan}${input.yearJi}`);
-      if (input.monthGan && input.monthJi) sajuParts.push(`월주 ${input.monthGan}${input.monthJi}`);
-      if (input.dayGan && input.dayJi)     sajuParts.push(`일주 ${input.dayGan}${input.dayJi}`);
-      if (input.hourGan && input.hourJi)   sajuParts.push(`시주 ${input.hourGan}${input.hourJi}`);
-      const sajuLine = sajuParts.length
-        ? sajuParts.join(" · ")
-        : (r?.meta?.isAutoFilled
-            ? "직접 입력 안 함 — 만세력 DB로 자동 계산됨"
-            : "직접 입력 안 함 — 절기 기반 근사 포국");
+      if (input.yearGan && input.yearJi)   sajuParts.push(`${input.yearGan}${input.yearJi}`);
+      if (input.monthGan && input.monthJi) sajuParts.push(`${input.monthGan}${input.monthJi}`);
+      if (input.dayGan && input.dayJi)     sajuParts.push(`${input.dayGan}${input.dayJi}`);
+      if (input.hourGan && input.hourJi)   sajuParts.push(`${input.hourGan}${input.hourJi}`);
+      const sajuLabel = sajuParts.length
+        ? sajuParts.join(" ")
+        : (r?.meta?.isAutoFilled ? "간지 자동계산(만세력)" : "간지 미입력(근사 포국)");
 
       grid.innerHTML = `
-        <div class="input-info-row"><span>생년월일</span><strong>${birthLine}</strong></div>
-        <div class="input-info-row"><span>태어난 시</span><strong>${sijiLabel}</strong></div>
-        <div class="input-info-row"><span>성별</span><strong>${genderLabel}</strong></div>
-        <div class="input-info-row"><span>사주팔자(간지)</span><strong>${sajuLine}</strong></div>
+        <span class="input-info-tag">${birthLabel}</span>
+        <span class="input-info-tag">${sijiLabel}</span>
+        <span class="input-info-tag">${genderLabel}</span>
+        <span class="input-info-tag">사주 <strong>${sajuLabel}</strong></span>
       `;
       card.style.display = "block";
     }
