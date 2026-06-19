@@ -280,14 +280,6 @@
     <div class="card">
       <div class="card-title">구궁도 (세궁: <span id="segungLabel" class="text-gold">-</span>)</div>
 
-      <!-- 방위 배열 토글 -->
-      <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px; flex-wrap:wrap;">
-        <span style="font-size:11px; color:var(--text-muted);">방위 배열:</span>
-        <button class="map-toggle-btn active" id="btnTraditional" onclick="setMapMode('traditional')">🧭 전통 역술 (남↑)</button>
-        <button class="map-toggle-btn" id="btnModern" onclick="setMapMode('modern')">🗺️ 현대 지도 (북↑)</button>
-        <span id="mapModeDesc" style="font-size:11px; color:var(--text-dim); margin-left:4px;">황제가 남쪽을 바라보는 전통 방식</span>
-      </div>
-
       <!-- 세궁 해설 -->
       <div class="segung-summary" id="segungSummary">
         <div class="segung-summary-left">
@@ -305,6 +297,13 @@
       <div class="dongcheo-summary" id="dongcheoSummary" style="display:none;">
         <div class="dongcheo-summary-title">⚡ 동처(動處) — 지금 가장 활성화된 방위</div>
         <div id="dongcheoText"></div>
+      </div>
+
+      <!-- 방위 배열 토글 (구궁도 바로 위, 우측 정렬) -->
+      <div style="display:flex; justify-content:flex-end; align-items:center; gap:6px; margin-bottom:8px; flex-wrap:wrap;">
+        <span id="mapModeDesc" style="font-size:11px; color:var(--text-dim);">황제가 남쪽을 바라보는 전통 방식</span>
+        <button class="map-toggle-btn active" id="btnTraditional" onclick="setMapMode('traditional')">🧭 전통 (남↑)</button>
+        <button class="map-toggle-btn" id="btnModern" onclick="setMapMode('modern')">🗺️ 현대 (북↑)</button>
       </div>
 
       <!-- 나침반 라벨 -->
