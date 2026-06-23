@@ -527,7 +527,16 @@ function runHongyeon(rawInput) {
   const giljung = deriveGiljung(board, segungIndex);
 
   // 홍국수 육친 종합표 — "재성/관성/인성 등이 어느 방위에 와 있는가"
-  const yukchinMap = (typeof summarizeYukchin === "function") ? summarizeYukchin(board) : null;
+  // ilganOhaeng이 있어야 의미 있는 데이터가 나온다.
+  // summarizeYukchin은 engine.js 내부 함수라 typeof 체크는 항상 통과하지만,
+  // ilganOhaeng이 null이면 board의 모든 jibanYukchin/cheonYukchin이 null이므로
+  // 빈 groups 대신 null을 명시적으로 반환하여 result.html 폴백 처리와 일관성을 맞춘다.
+  let yukchinMap = null;
+  if (ilganOhaeng) {
+    yukchinMap = (typeof summarizeYukchin === "function") ? summarizeYukchin(board) : null;
+    // summarizeYukchin이 모든 배열이 빈 객체를 반환한 경우에도 유효한 값으로 취급
+    // (일간은 알지만 그 오행과 일치하는 홍국수가 없을 수도 있음 — 정상)
+  }
 
   const hasSaju = !!(yearGan && monthGan && dayGan);
   const isAutoFilled = !!(_dayGanjiSource || _yearGanjiSource || _monthGanjiSource);
