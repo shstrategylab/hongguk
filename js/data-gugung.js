@@ -151,6 +151,10 @@ const PALMUN = {
   귀혼: { label: "귀혼(歸魂)", score: 25, tier: "흉", desc: "퇴보·후퇴. 현상 유지가 최선." },
   절체: { label: "절체(絶體)", score: 15, tier: "흉", desc: "막힘·차단. 큰일 금물." },
   절명: { label: "절명(絶命)", score: 5,  tier: "흉", desc: "최흉방. 이동·건축·계약 절대 금지." },
+  // [BUG FIX] 복위(伏位): buildPalmunBoard에서 9번째 궁에 배속되지만 PALMUN에 정의가
+  //           없어 assembleBoard에서 palmun이 undefined → tier 기본값 "흉"으로 처리되던
+  //           버그 수정. 복위는 안정·중립 성격으로 tier:"중" 부여.
+  복위: { label: "복위(伏位)", score: 55, tier: "중", desc: "안정·중립. 현상 유지에 무난한 방위." },
 };
 
 // ── 신살(神煞) 데이터 ─────────────────────────────
