@@ -1,8 +1,15 @@
 // =====================================================
-// engine.js — 홍연기문 핵심 연산 엔진 v2.5
+// engine.js — 홍연기문 핵심 연산 엔진 v2.6
 //
+// [v2.6 변경사항]
+//   ADD: 홍국수 십신(十神, 음양 10분류) 계산 — data-yukhin.js의 YUKHIN_RULE을
+//        그대로 재사용하되, 기준을 "세궁 위치 오행"이 아니라 "일간(日干) 오행"으로,
+//        대상을 "타궁 위치 오행"이 아니라 "그 자리에 실제로 앉은 홍국수의 오행"으로 교정.
+//        (음양도 "궁 번호"가 아니라 "홍국수 자신의 음양"으로 판별)
+//        premium.html이 사람마다 달라지는 실제 포국 결과를 반영하도록 하기 위함.
+//        결과는 board[gung].hongguksu.{jibanSipsin, cheonSipsin, jibanRelCode, cheonRelCode}.
 // [v2.5 변경사항]
-//   ADD: 홍국수(洪局數) 육친(六親) 배속 — 일간 오행 기준으로 9궁의
+//   ADD: 홍국수(洪局數) 육친(六親) 배속(5분류) — 일간 오행 기준으로 9궁의
 //        지반/천반 홍국수가 비겁·식상·재성·관성·인성 중 무엇에 해당하는지
 //        산출(assembleBoard 4번째 인자 ilganOhaeng, getYukchin 사용).
 //        "재성/관성이 어느 방위에 있는가"를 보는, 정통 홍연기문의 핵심 기능.
@@ -21,6 +28,9 @@
 //   data-gugung.js : GUGUNG, PALMUN, PALMUN_ORDER, buildPalmunBoard,
 //                    RELATION_TYPE, getRelationType, getOhaengChar,
 //                    YUKCHIN_LABEL, getYukchin, YUKCHIN_MEANING (v2.5 신규)
+//   data-yukhin.js : YUKHIN_RULE, getYukhinRelCode (v2.6부터 engine.js가 직접 사용 —
+//                    모든 html 파일에서 data-yukhin.js를 engine.js보다 먼저 로드해야 함,
+//                    기존 스크립트 순서가 이미 그렇게 되어 있어 추가 조치 불필요)
 // =====================================================
 
 
@@ -208,17 +218,43 @@ function assembleBoard(jibanBoard, cheonbanBoard, segungIndex, ilganOhaeng) {
       ? getSinsalForGung(cheon, jiban)
       : [];
 
-    // ── 홍국수(洪局數) 자체의 오행·육친·고유 기운 ──
+    // ── 홍국수(洪局數) 자체의 오행·육친·십신·고유 기운 ──
     // 홍국수는 위치(궁)와 무관하게 "숫자 자신"이 갖는 오행과 본래의 궁(GUGUNG) 기운을
     // 지니고 다닌다고 보아, 그 숫자가 원래 속한 궁(GUGUNG[숫자])의 키워드를 함께 부여한다.
     const jibanOhaeng = getOhaengChar(jiban);
     const cheonOhaeng  = getOhaengChar(cheon);
+
+    // 일간 기준 5분류 육친(getYukchin, data-gugung.js)
+    const jibanYukchin = (typeof getYukchin === "function") ? getYukchin(ilganOhaeng, jibanOhaeng) : null;
+    const cheonYukchin = (typeof getYukchin === "function") ? getYukchin(ilganOhaeng, cheonOhaeng) : null;
+
+    // 일간 기준 10분류 십신(十神) — data-yukhin.js의 YUKHIN_RULE을 그대로 재사용.
+    // [중요] 음양은 "궁(자리) 번호"가 아니라 실제로 그 자리에 앉은 홍국수 자신의 음양으로 판별한다.
+    //        (낙서수 음양: 1·3·5·7·9=양, 2·4·6·8=음 — 표준 홍국수 음양 규칙)
+    // 이렇게 해야 premium.html의 십신 풀이가 "사람마다 달라지는 실제 홍국수 배치"를 반영한다.
+    function deriveSipsin(num, ohaeng) {
+      if (!ilganOhaeng || typeof getYukhinRelCode !== "function" || typeof YUKHIN_RULE === "undefined") {
+        return { relCode: null, sipsin: null };
+      }
+      const relCode = getYukhinRelCode(ilganOhaeng, ohaeng);
+      const isYang = (num % 2 !== 0);
+      const sipsin = YUKHIN_RULE[relCode]?.[isYang ? "양" : "음"] || null;
+      return { relCode, sipsin };
+    }
+    const jibanSip = deriveSipsin(jiban, jibanOhaeng);
+    const cheonSip  = deriveSipsin(cheon, cheonOhaeng);
+
     const hongguksu = {
       jibanOhaeng,
       cheonOhaeng,
-      // 일간 기준 육친 — 일간을 모르면 null
-      jibanYukchin: (typeof getYukchin === "function") ? getYukchin(ilganOhaeng, jibanOhaeng) : null,
-      cheonYukchin: (typeof getYukchin === "function") ? getYukchin(ilganOhaeng, cheonOhaeng) : null,
+      // 일간 기준 5분류 육친 — 일간을 모르면 null
+      jibanYukchin,
+      cheonYukchin,
+      // 일간 기준 10분류 십신(음양 구분) — premium.html과 공유하는 정식 데이터
+      jibanRelCode: jibanSip.relCode,
+      cheonRelCode: cheonSip.relCode,
+      jibanSipsin:  jibanSip.sipsin,   // { name, label, businessLabel } | null
+      cheonSipsin:  cheonSip.sipsin,
       // 숫자 자신이 원래 속한 궁(GUGUNG)의 고유 키워드 — "타고 온 기운"
       jibanNumKeyword: GUGUNG[jiban]?.desc || "",
       cheonNumKeyword: GUGUNG[cheon]?.desc || "",
