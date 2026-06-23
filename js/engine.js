@@ -34,6 +34,27 @@
 // =====================================================
 
 
+// ── 0. engine.js 자체 내장 유틸 ──────────────────
+// getYukchin: data-gugung.js에도 정의되어 있지만, engine.js 실행 시점에
+// data-gugung.js 로드가 완료되지 않은 경우(캐시 미스, 비동기 타이밍 등)
+// typeof getYukchin === "function"이 false가 되어 모든 육친이 null로 처리됨.
+// → engine.js 안에 동일 로직을 내장해 타이밍 문제를 완전히 차단한다.
+const _OHAENG_SENG = { 목:"화", 화:"토", 토:"금", 금:"수", 수:"목" };
+const _OHAENG_KEUK = { 목:"토", 화:"금", 토:"수", 금:"목", 수:"화" };
+const _YUKCHIN_LABEL = {
+  비겁:"비겁(比劫)", 식상:"식상(食傷)", 재성:"재성(財星)",
+  관성:"관성(官星)", 인성:"인성(印星)",
+};
+function _getYukchin(ilganOhaeng, targetOhaeng) {
+  if (!ilganOhaeng || !targetOhaeng) return null;
+  if (ilganOhaeng === targetOhaeng)               return _YUKCHIN_LABEL.비겁;
+  if (_OHAENG_SENG[ilganOhaeng] === targetOhaeng) return _YUKCHIN_LABEL.식상;
+  if (_OHAENG_SENG[targetOhaeng] === ilganOhaeng) return _YUKCHIN_LABEL.인성;
+  if (_OHAENG_KEUK[ilganOhaeng] === targetOhaeng) return _YUKCHIN_LABEL.재성;
+  if (_OHAENG_KEUK[targetOhaeng] === ilganOhaeng) return _YUKCHIN_LABEL.관성;
+  return null;
+}
+
 // ── 1. 절기 판별 ──────────────────────────────────
 // [FIX 1] 기존 코드는 JEOLGI_ORDER 루프에서 1월(jMonth===1)을 continue로
 //         통째로 건너뛰어 1월생은 항상 "dongji"로 시작하는 문제가 있었음.
@@ -224,9 +245,12 @@ function assembleBoard(jibanBoard, cheonbanBoard, segungIndex, ilganOhaeng) {
     const jibanOhaeng = getOhaengChar(jiban);
     const cheonOhaeng  = getOhaengChar(cheon);
 
-    // 일간 기준 5분류 육친(getYukchin, data-gugung.js)
-    const jibanYukchin = (typeof getYukchin === "function") ? getYukchin(ilganOhaeng, jibanOhaeng) : null;
-    const cheonYukchin = (typeof getYukchin === "function") ? getYukchin(ilganOhaeng, cheonOhaeng) : null;
+    // 일간 기준 5분류 육친 — engine.js 내장 _getYukchin 사용 (타이밍 무관)
+    // data-gugung.js의 getYukchin이 있으면 그것도 동일하게 동작하지만,
+    // 로드 순서/캐시 문제로 undefined일 수 있으므로 내장 함수를 우선 사용한다.
+    const yukchinFn = (typeof getYukchin === "function") ? getYukchin : _getYukchin;
+    const jibanYukchin = yukchinFn(ilganOhaeng, jibanOhaeng);
+    const cheonYukchin = yukchinFn(ilganOhaeng, cheonOhaeng);
 
     // 일간 기준 10분류 십신(十神) — data-yukhin.js의 YUKHIN_RULE을 그대로 재사용.
     // [중요] 음양은 "궁(자리) 번호"가 아니라 실제로 그 자리에 앉은 홍국수 자신의 음양으로 판별한다.
@@ -527,15 +551,30 @@ function runHongyeon(rawInput) {
   const giljung = deriveGiljung(board, segungIndex);
 
   // 홍국수 육친 종합표 — "재성/관성/인성 등이 어느 방위에 와 있는가"
-  // ilganOhaeng이 있어야 의미 있는 데이터가 나온다.
-  // summarizeYukchin은 engine.js 내부 함수라 typeof 체크는 항상 통과하지만,
-  // ilganOhaeng이 null이면 board의 모든 jibanYukchin/cheonYukchin이 null이므로
-  // 빈 groups 대신 null을 명시적으로 반환하여 result.html 폴백 처리와 일관성을 맞춘다.
+  // ilganOhaeng이 없으면 육친 자체가 의미 없으므로 null 유지.
+  // board의 hongguksu.jibanYukchin/cheonYukchin은 assembleBoard에서 _getYukchin으로
+  // 이미 세팅되어 있으므로, summarizeYukchin이 제대로 집계하면 된다.
+  // 만약 board 자체에서 육친이 null로 들어왔다면(데이터 깨짐) 직접 재계산 폴백.
   let yukchinMap = null;
   if (ilganOhaeng) {
     yukchinMap = (typeof summarizeYukchin === "function") ? summarizeYukchin(board) : null;
-    // summarizeYukchin이 모든 배열이 빈 객체를 반환한 경우에도 유효한 값으로 취급
-    // (일간은 알지만 그 오행과 일치하는 홍국수가 없을 수도 있음 — 정상)
+
+    // 폴백: summarizeYukchin이 없거나 board hongguksu가 null인 경우 직접 집계
+    const allEmpty = yukchinMap && Object.values(yukchinMap).every(arr => arr.length === 0);
+    if (!yukchinMap || allEmpty) {
+      const groups = {
+        "비겁(比劫)":[], "식상(食傷)":[], "재성(財星)":[], "관성(官星)":[], "인성(印星)":[],
+      };
+      for (const g of Object.values(board)) {
+        const jibanO = getOhaengChar(g.jibansu);
+        const cheonO  = getOhaengChar(g.cheonbansu);
+        const jYc = _getYukchin(ilganOhaeng, jibanO);
+        const cYc = _getYukchin(ilganOhaeng, cheonO);
+        if (jYc && groups[jYc]) groups[jYc].push({ gung: g.gungInfo.name, direction: g.gungInfo.direction, layer:"지반", num: g.jibansu, isSegung: g.isSegung });
+        if (cYc && groups[cYc]) groups[cYc].push({ gung: g.gungInfo.name, direction: g.gungInfo.direction, layer:"천반", num: g.cheonbansu, isSegung: g.isSegung });
+      }
+      yukchinMap = groups;
+    }
   }
 
   const hasSaju = !!(yearGan && monthGan && dayGan);
