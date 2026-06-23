@@ -644,16 +644,24 @@ function runHongyeon(rawInput) {
 //         길방 TOP3에 오르지 않도록 필터링.
 //         (tier 필드는 data-gugung.js PALMUN에 추가됨)
 //
+// [BUG FIX] segungIndex 인자가 함수 내부에서 실제로 사용되지 않는 문제 수정.
+//           board의 각 궁에 이미 isSegung 플래그가 설정되어 있으므로
+//           해당 플래그를 직접 사용하며, segungIndex 인자는 호환성을 위해 유지.
+//
 // 점수 구조 (수정 후):
 //   combined = relationScore(0~90) * 0.45
 //            + palmunScore(0~95)   * 0.45
 //            + sinsalPenalty(-30~0) * 1.0   ← 패널티 실질 반영
 //   → 최대 약 83점 / 신살 1개 시 최대 -30점 감점
-function deriveGiljung(board, segungIndex) {
+function deriveGiljung(board, segungIndex) {  // segungIndex: 호환성 유지, 내부에서 board.isSegung 사용
   const scored = Object.values(board).map(g => {
     const relationScore = g.relation.score;
     const palmunScore   = g.palmun?.score ?? 55;
-    const palmunTier    = g.palmun?.tier  ?? "흉";   // tier 없으면 흉으로 보수적 처리
+    // [BUG FIX] 기본값을 "흉"→"중"으로 수정.
+    // 이전에는 PALMUN에 복위(伏位)가 없어 palmun이 undefined인 궁의 tier가
+    // "흉"으로 처리되어 해당 궁이 길방 후보에서 부당하게 제외되었음.
+    // data-gugung.js에 복위를 추가했으므로 정상 동작하지만, 방어적으로 "중"을 유지.
+    const palmunTier    = g.palmun?.tier  ?? "중";
     // 신살 패널티: score가 음수(-25 ~ -30)이므로 * 1.0으로 실질 반영
     const sinsalPenalty = (g.sinsal || []).reduce((acc, s) => acc + (s.score || 0), 0);
     const combined = Math.max(
@@ -681,14 +689,16 @@ function deriveGiljung(board, segungIndex) {
   const others = scored.filter(g => !g.isSegung);
   others.sort((a, b) => b.combined - a.combined);
 
-  // [FIX 4] 팔문 tier "길"인 궁만 길방 후보로 허용
+  // [FIX 4] 팔문 tier "길"·"중"인 궁만 길방 후보로 허용
   //         → 유혼(遊魂) 이하 흉문이 길방에 오르는 모순 방지
   // [FIX 4-b] 세궁이 생기·복덕·천의 중 하나를 차지해 길방 후보가 2개 이하로 줄어도
-  //           유혼·화해가 앞에 오지 않도록 tier "길" 우선, 부족분만 흉문 상위로 보충
-  const gilTier   = others.filter(g => g.palmunTier === "길");
-  const hyungTier = others.filter(g => g.palmunTier !== "길");
+  //           유혼·화해가 앞에 오지 않도록 tier "길"·"중" 우선, 부족분만 흉문 상위로 보충
+  // [BUG FIX] 복위(tier:"중")가 이전에는 tier "흉" 기본값으로 처리되어 길방 보충 후보에서
+  //           제외되었음. "중" tier를 길방 보충 후보에 포함하도록 수정.
+  const gilTier   = others.filter(g => g.palmunTier === "길" || g.palmunTier === "중");
+  const hyungTier = others.filter(g => g.palmunTier === "흉");
 
-  // 길방: tier "길" 우선 채우고 부족하면 tier "흉" 상위 점수로 보충
+  // 길방: tier "길"·"중" 우선 채우고 부족하면 tier "흉" 상위 점수로 보충
   const gilbang = [
     ...gilTier.slice(0, 3),
     ...hyungTier.slice(0, Math.max(0, 3 - gilTier.length)),
