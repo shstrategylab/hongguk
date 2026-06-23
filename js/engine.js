@@ -1,6 +1,12 @@
 // =====================================================
-// engine.js — 홍연기문 핵심 연산 엔진 v2.3
+// engine.js — 홍연기문 핵심 연산 엔진 v2.5
 //
+// [v2.5 변경사항]
+//   ADD: 홍국수(洪局數) 육친(六親) 배속 — 일간 오행 기준으로 9궁의
+//        지반/천반 홍국수가 비겁·식상·재성·관성·인성 중 무엇에 해당하는지
+//        산출(assembleBoard 4번째 인자 ilganOhaeng, getYukchin 사용).
+//        "재성/관성이 어느 방위에 있는가"를 보는, 정통 홍연기문의 핵심 기능.
+//        결과는 board[gung].hongguksu, analysis.yukchinMap, AI 프롬프트에 반영됨.
 // [v2.3 변경사항]
 //   FIX 1: getCurrentJeolgi() — 1월 절기(소한·대한) 루프 누락 버그 수정
 //           연도 경계를 올바르게 처리하는 통합 로직으로 재작성
@@ -13,7 +19,8 @@
 //   data-ganji.js  : CHEONGAN, JIJI, SAMWON, GANJI_60, getHourToSiji
 //   data-jeolgi.js : JEOLGI_ORDER, JEOLGI_APPROX_DATE, JEOLGI_DATA
 //   data-gugung.js : GUGUNG, PALMUN, PALMUN_ORDER, buildPalmunBoard,
-//                    RELATION_TYPE, getRelationType, getOhaengChar
+//                    RELATION_TYPE, getRelationType, getOhaengChar,
+//                    YUKCHIN_LABEL, getYukchin, YUKCHIN_MEANING (v2.5 신규)
 // =====================================================
 
 
@@ -184,8 +191,10 @@ function getSegung(dayGan, jibanBoard) {
 }
 
 
-// ── 8. 최종 board 조립 (팔문 + 신살 포함) ────────
-function assembleBoard(jibanBoard, cheonbanBoard, segungIndex) {
+// ── 8. 최종 board 조립 (팔문 + 신살 + 홍국수 육친 포함) ────────
+// ilganOhaeng: 일간(日干)의 오행 — 홍국수 육친 배속의 기준점.
+//              dayGan을 모르면 null로 들어오며, 이 경우 육친은 계산되지 않는다.
+function assembleBoard(jibanBoard, cheonbanBoard, segungIndex, ilganOhaeng) {
   const palmunBoard = buildPalmunBoard(segungIndex);
 
   const board = {};
@@ -199,6 +208,22 @@ function assembleBoard(jibanBoard, cheonbanBoard, segungIndex) {
       ? getSinsalForGung(cheon, jiban)
       : [];
 
+    // ── 홍국수(洪局數) 자체의 오행·육친·고유 기운 ──
+    // 홍국수는 위치(궁)와 무관하게 "숫자 자신"이 갖는 오행과 본래의 궁(GUGUNG) 기운을
+    // 지니고 다닌다고 보아, 그 숫자가 원래 속한 궁(GUGUNG[숫자])의 키워드를 함께 부여한다.
+    const jibanOhaeng = getOhaengChar(jiban);
+    const cheonOhaeng  = getOhaengChar(cheon);
+    const hongguksu = {
+      jibanOhaeng,
+      cheonOhaeng,
+      // 일간 기준 육친 — 일간을 모르면 null
+      jibanYukchin: (typeof getYukchin === "function") ? getYukchin(ilganOhaeng, jibanOhaeng) : null,
+      cheonYukchin: (typeof getYukchin === "function") ? getYukchin(ilganOhaeng, cheonOhaeng) : null,
+      // 숫자 자신이 원래 속한 궁(GUGUNG)의 고유 키워드 — "타고 온 기운"
+      jibanNumKeyword: GUGUNG[jiban]?.desc || "",
+      cheonNumKeyword: GUGUNG[cheon]?.desc || "",
+    };
+
     board[gungNum] = {
       gungNum,
       gungInfo:   GUGUNG[gungNum],
@@ -209,9 +234,37 @@ function assembleBoard(jibanBoard, cheonbanBoard, segungIndex) {
       palmun:     PALMUN[palmunKey],
       palmunKey,
       sinsal,
+      hongguksu,
     };
   }
   return board;
+}
+
+
+// ── 8-e. 홍국수 육친 종합표 ────────────────────────
+// "내 재성/관성/인성 등이 어느 방위에 와 있는가"를 한눈에 보기 위한 집계.
+// 정통 홍연기문에서 길흉 방위 판단의 핵심 축 중 하나.
+function summarizeYukchin(board) {
+  const groups = {
+    "비겁(比劫)": [], "식상(食傷)": [], "재성(財星)": [], "관성(官星)": [], "인성(印星)": [],
+  };
+  for (const g of Object.values(board)) {
+    const h = g.hongguksu;
+    if (!h) continue;
+    if (h.jibanYukchin && groups[h.jibanYukchin]) {
+      groups[h.jibanYukchin].push({
+        gung: g.gungInfo.name, direction: g.gungInfo.direction,
+        layer: "지반", num: g.jibansu, isSegung: g.isSegung,
+      });
+    }
+    if (h.cheonYukchin && groups[h.cheonYukchin]) {
+      groups[h.cheonYukchin].push({
+        gung: g.gungInfo.name, direction: g.gungInfo.direction,
+        layer: "천반", num: g.cheonbansu, isSegung: g.isSegung,
+      });
+    }
+  }
+  return groups;
 }
 
 
@@ -428,10 +481,17 @@ function runHongyeon(rawInput) {
 
   const cheonbanBoard = buildCheonbanBoard(jibanBoard, jibanHong, cheonbanHong, type);
   const segungIndex   = getSegung(dayGan, jibanBoard);
-  const board         = assembleBoard(jibanBoard, cheonbanBoard, segungIndex);
+
+  // 일간(日干) 오행 — 홍국수 육친 배속의 기준점 (일간을 모르면 null → 육친 미산출)
+  const ilganOhaeng = dayGan ? CHEONGAN[dayGan]?.ohaeng : null;
+
+  const board         = assembleBoard(jibanBoard, cheonbanBoard, segungIndex, ilganOhaeng);
 
   // 길흉 요약 자동 산출
   const giljung = deriveGiljung(board, segungIndex);
+
+  // 홍국수 육친 종합표 — "재성/관성/인성 등이 어느 방위에 와 있는가"
+  const yukchinMap = (typeof summarizeYukchin === "function") ? summarizeYukchin(board) : null;
 
   const hasSaju = !!(yearGan && monthGan && dayGan);
   const isAutoFilled = !!(_dayGanjiSource || _yearGanjiSource || _monthGanjiSource);
@@ -474,13 +534,14 @@ function runHongyeon(rawInput) {
     analysis: {
       jibanHong, cheonbanHong, segungIndex,
       segungName:   GUGUNG[segungIndex]?.name || "",
-      dayGanOhaeng: dayGan ? CHEONGAN[dayGan]?.ohaeng : null,
+      dayGanOhaeng: ilganOhaeng,
       // 최종 적용된(계산식 우선) 사주팔자 — result.html 등에서 "입력 정보" 표시용
       yearGanji:  pairGanji(yearGan, yearJi),
       monthGanji: pairGanji(monthGan, monthJi),
       dayGanji:   pairGanji(dayGan, dayJi),
       hourGanji:  pairGanji(hourGanFinal, hourJiFinal),
       ganjiMismatch,
+      yukchinMap, // 홍국수 육친 종합표 (재성/관성/인성 등이 어느 방위에 있는지)
     },
     giljung,
     board,
@@ -524,6 +585,9 @@ function deriveGiljung(board, segungIndex) {
       palmunTier,                              // tier 보존 (필터링용)
       relationLabel: g.relation.label,
       sinsalLabels:  (g.sinsal || []).map(s => s.label),
+      // 홍국수 육친 — 일간 기준 재성/관성/인성 등 (일간 미상이면 null)
+      jibanYukchin:  g.hongguksu?.jibanYukchin || null,
+      cheonYukchin:  g.hongguksu?.cheonYukchin || null,
       combined,
       isSegung:      g.isSegung,
     };
@@ -569,7 +633,7 @@ function buildAiPrompt(result, userInput, topic) {
 
   const samwonLabel = { sang: "상원(上元)", jung: "중원(中元)", ha: "하원(下元)" };
 
-  // 구궁 포국 텍스트 (팔문 포함)
+  // 구궁 포국 텍스트 (팔문 + 홍국수 육친 포함)
   const boardText = NAKSEO_PATH.map(gungNum => {
     const g = board[gungNum];
     const segMark   = g.isSegung ? " ★세궁" : "";
@@ -577,8 +641,22 @@ function buildAiPrompt(result, userInput, topic) {
       ? ` [${g.palmun.label} ${g.palmun.score}점]` : "";
     const sinsalStr = (g.sinsal && g.sinsal.length > 0)
       ? ` ⚡신살: ${g.sinsal.map(s => s.label).join("·")}` : "";
-    return `  ${g.gungInfo.name}(${g.gungInfo.direction}): 지반${g.jibansu} 천반${g.cheonbansu} [${g.relation.label} ${g.relation.score}점]${palmunStr}${sinsalStr}${segMark}`;
+    const yukchinStr = g.hongguksu
+      ? ` (지반육친:${g.hongguksu.jibanYukchin || "-"} / 천반육친:${g.hongguksu.cheonYukchin || "-"})`
+      : "";
+    return `  ${g.gungInfo.name}(${g.gungInfo.direction}): 지반${g.jibansu} 천반${g.cheonbansu} [${g.relation.label} ${g.relation.score}점]${palmunStr}${sinsalStr}${yukchinStr}${segMark}`;
   }).join("\n");
+
+  // 홍국수 육친 종합표 텍스트 — "재성/관성/인성 등이 어느 방위에 와 있는가"
+  const yukchinMap = result.analysis.yukchinMap || summarizeYukchin(board);
+  const yukchinText = Object.entries(yukchinMap)
+    .map(([label, list]) => {
+      if (!list.length) return `  ${label}: 없음`;
+      const items = list.map(it =>
+        `${it.gung}(${it.direction}, ${it.layer}${it.num}${it.isSegung ? "·세궁" : ""})`
+      ).join(", ");
+      return `  ${label}: ${items}`;
+    }).join("\n");
 
   // 길방·흉방 요약 텍스트
   const gilText = giljung.gilbang.map((g, i) =>
@@ -674,8 +752,11 @@ ${hasAnySaju
 - 천반 홍국수: ${analysis.cheonbanHong}
 - 세궁(世宮): ${analysis.segungIndex}번 ${analysis.segungName}
 
-## 구궁 포국 결과 (지반 / 천반 / 생극관계 / 팔문)
+## 구궁 포국 결과 (지반 / 천반 / 생극관계 / 팔문 / 육친)
 ${boardText}
+
+## 홍국수 육친(六親) 종합표 — 일간 기준
+${yukchinText}
 
 ## 자동 산출 길흉 요약
 ▶ 길방 TOP3
@@ -692,7 +773,8 @@ ${dongcheoText}
 2. 길방 TOP3의 팔문과 생극을 결합한 구체적 활용법(이동 방향·사무실 배치·기도 방위 등)을 알려주세요.
 3. 흉방의 팔문과 그 위험성을 설명하고 회피 방법을 알려주세요.
 4. 신살(탕화살·수옥살·겁살·백호살 등)이 발동된 궁이 있다면, 어떤 위험인지 구체적으로 설명하고 대처법을 알려주세요.
-5. ${topicGuide}에 맞춰 실용적이고 구체적인 조언을 해주세요.
+5. 홍국수 육친표를 바탕으로 재성·관성·인성이 위치한 방위와 그 의미를 짚어주세요(재성=재물, 관성=직위·명예, 인성=문서·후원).
+6. ${topicGuide}에 맞춰 실용적이고 구체적인 조언을 해주세요.
 
 한국어로, 실용적이고 구체적으로 답해주세요.`;
 }
