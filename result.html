@@ -479,7 +479,8 @@
         const rel        = g.relation;
         const isSegung   = g.isSegung || gungNum === analysis.segungIndex;
         const isDongcheo = dongcheoNums.has(gungNum);
-        const scoreClass = rel.score >= 80 ? "high" : rel.score >= 40 ? "mid" : "low";
+        const cellCombined = combinedMap[gungNum] ?? rel.score;
+        const scoreClass = cellCombined >= 80 ? "high" : cellCombined >= 40 ? "mid" : "low";
 
         const cell = document.createElement("div");
         cell.className = "gung-cell"
@@ -494,7 +495,7 @@
           : "";
 
         cell.innerHTML = `
-          <span class="score-badge badge-${rel.badge}">${rel.badge}</span>
+          <span class="score-badge badge-${combinedBadge(cellCombined)}">${combinedBadge(cellCombined)}</span>
           <span class="gung-hanja">${g.gungInfo.hanja}</span>
           <span class="gung-name">${g.gungInfo.direction}</span>
           <span class="gung-num">${g.jibansu}</span>
@@ -782,7 +783,7 @@
           const relationScore = g.relation.score;
           const palmunScore   = g.palmun?.score ?? 55;
           const sinsalPenalty = (g.sinsal || []).reduce((acc, s) => acc + (s.score || 0), 0);
-          combinedMap[g.gungNum] = Math.max(0, Math.round(relationScore * 0.45 + palmunScore * 0.45 + sinsalPenalty * 0.1));
+          combinedMap[g.gungNum] = Math.max(0, Math.round(relationScore * 0.45 + palmunScore * 0.45 + sinsalPenalty * 1.0));
         }
       });
 
